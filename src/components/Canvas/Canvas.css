@@ -1,0 +1,440 @@
+.canvas-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background-color: #f0f0f0;
+  cursor: grab;
+}
+
+.canvas-container:active {
+  cursor: grabbing;
+}
+
+.infinite-canvas {
+  position: absolute;
+  min-width: 10000px;
+  min-height: 10000px;
+  transform-origin: 0 0;
+  transition: transform 0.1s ease;
+}
+
+.canvas-grid {
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(to right, #e0e0e0 1px, transparent 1px),
+    linear-gradient(to bottom, #e0e0e0 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: -1px -1px;
+}
+
+.canvas-element {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+  transition: transform 0.1s ease, outline 0.2s ease;
+}
+
+/* 元素选中效果 */
+.canvas-element.selected {
+  outline: 2px solid #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+  z-index: 1000 !important;
+}
+
+/* 元素拖拽时的样式 */
+.canvas-element.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+/* 图形元素样式 */
+.canvas-shape {
+  /* 基础样式已在组件中定义 */
+  transition: all 0.2s ease;
+  position: absolute;
+  transform-origin: 0 0;
+}
+
+.canvas-shape:hover {
+  transform: scale(1.02);
+}
+
+/* 图片元素样式 */
+.canvas-image {
+  pointer-events: all;
+  transition: filter 0.2s ease;
+  position: absolute;
+  transform-origin: 0 0;
+  max-width: 500px;
+  max-height: 500px;
+  object-fit: contain;
+}
+
+.canvas-image:hover {
+  filter: brightness(1.05);
+}
+
+/* 文本元素样式 */
+.canvas-text {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: Arial, sans-serif;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  transition: background-color 0.2s ease;
+  position: absolute;
+  transform-origin: 0 0;
+  padding: 5px;
+  min-width: 100px;
+  min-height: 30px;
+}
+
+.canvas-text:hover {
+  background-color: rgba(240, 240, 240, 0.5);
+}
+
+/* 富文本编辑器工具栏样式 */
+.rich-text-toolbar {
+  position: absolute;
+  top: -35px;
+  left: 0;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.toolbar-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #ddd;
+  background-color: white;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover {
+  background-color: #e3f2fd;
+  border-color: #2196F3;
+}
+
+.toolbar-btn.active {
+  background-color: #2196F3;
+  color: white;
+  border-color: #1976D2;
+}
+
+.rich-text-toolbar select {
+  height: 28px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  padding: 0 4px;
+  font-size: 12px;
+  background-color: white;
+}
+
+.rich-text-toolbar input[type="color"] {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+}
+
+.text-align-buttons {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.text-align-buttons .toolbar-btn {
+  border-radius: 0;
+  border: none;
+  border-right: 1px solid #ddd;
+}
+
+.text-align-buttons .toolbar-btn:last-child {
+  border-right: none;
+}
+
+/* 缩放和位置指示器 */
+.canvas-status {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 3000;
+  user-select: none;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-label {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.status-value {
+  color: #212529;
+  font-weight: 600;
+}
+
+/* 快捷键提示样式 */
+.keyboard-shortcuts-container {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 3000;
+}
+
+.shortcuts-toggle {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #495057;
+}
+
+.shortcuts-toggle:hover {
+  background-color: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+.shortcuts-toggle:active {
+  transform: scale(0.98);
+}
+
+.shortcuts-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.shortcuts-panel {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shortcuts-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shortcuts-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.shortcuts-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.shortcuts-close:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.shortcuts-content {
+  padding: 20px;
+  max-height: calc(80vh - 80px);
+  overflow-y: auto;
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.shortcut-item:last-child {
+  border-bottom: none;
+}
+
+.shortcut-keys {
+  background-color: #f1f1f1;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-family: monospace;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+}
+
+.shortcut-description {
+  font-size: 14px;
+  color: #333;
+  flex: 1;
+  margin-left: 16px;
+}
+
+/* 工具栏样式（稍后实现） */
+.canvas-toolbar {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  z-index: 1000;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .canvas-status {
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    transform: none;
+    justify-content: center;
+    gap: 15px;
+    font-size: 13px;
+  }
+  
+  .keyboard-shortcuts-container {
+    bottom: 10px;
+    left: 10px;
+  }
+  
+  .shortcuts-toggle {
+    padding: 6px 10px;
+  }
+  
+  .shortcuts-panel {
+    width: 95%;
+    max-width: none;
+  }
+  
+  .shortcut-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .shortcut-description {
+    margin-left: 0;
+    font-size: 13px;
+  }
+  
+  .canvas-toolbar {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .canvas-container {
+    height: calc(100vh - 60px);
+  }
+  
+  .canvas-status {
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    gap: 10px;
+    font-size: 12px;
+  }
+  
+  .status-label {
+    font-size: 11px;
+  }
+  
+  .keyboard-shortcuts-container {
+    bottom: 5px;
+    left: 5px;
+  }
+  
+  .shortcuts-toggle {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+}
