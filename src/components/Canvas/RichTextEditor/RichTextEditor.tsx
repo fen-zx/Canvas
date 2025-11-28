@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { TextElement } from './types';
+import type { TextElement } from '../types';
+
+// 添加样式来隐藏WebKit浏览器的滚动条
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+`;
+document.head.appendChild(styleSheet);
 
 interface RichTextEditorProps {
   element: TextElement;
@@ -23,12 +32,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [localFontStyle, setLocalFontStyle] = useState(element.fontStyle);
   const [localTextAlign, setLocalTextAlign] = useState(element.textAlign);
   const [isUnderlined, setIsUnderlined] = useState(element.textDecoration?.includes('underline') || false);
-  
+
   // 历史记录状态（用于撤销/重做）
   const [history, setHistory] = useState<Partial<TextElement>[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const historyMaxLength = 50; // 最大历史记录条数
-  
+
   // 文本区域引用
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false); // 用于IME输入处理
@@ -48,9 +57,36 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // 当进入编辑模式时，聚焦到文本区域
   useEffect(() => {
     if (isEditing && textAreaRef.current) {
-      textAreaRef.current.focus();
+      // 确保DOM更新完成后再聚焦
+      setTimeout(() => {
+        textAreaRef.current?.focus();
+        // 自动选中所有文本（可选）
+        // textAreaRef.current?.select();
+      }, 0);
     }
   }, [isEditing]);
+
+  // 添加点击外部退出编辑状态的功能
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // 检查点击是否发生在编辑器及其工具栏外部
+      const editorWrapper = document.querySelector('.rich-text-editor-wrapper');
+      if (editorWrapper && !editorWrapper.contains(target)) {
+        onFinishEditing();
+      }
+    };
+
+    // 添加全局点击事件监听器
+    document.addEventListener('mousedown', handleClickOutside);
+
+    // 清理函数
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditing, onFinishEditing]);
 
   // 保存当前状态到历史记录
   const saveToHistory = useCallback((changes: Partial<TextElement>) => {
@@ -61,13 +97,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     });
     setHistoryIndex(prevIndex => prevIndex + 1);
   }, [historyIndex, element]);
-  
+
   // 撤销操作
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const previousState = history[historyIndex - 1];
       setHistoryIndex(prevIndex => prevIndex - 1);
-      
+
       // 应用历史状态
       if (previousState.content !== undefined) {
         setLocalContent(previousState.content);
@@ -80,13 +116,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // 更新其他属性...
     }
   }, [history, historyIndex, onUpdate]);
-  
+
   // 重做操作
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const nextState = history[historyIndex + 1];
       setHistoryIndex(prevIndex => prevIndex + 1);
-      
+
       // 应用历史状态
       if (nextState.content !== undefined) {
         setLocalContent(nextState.content);
@@ -99,34 +135,34 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // 更新其他属性...
     }
   }, [history, historyIndex, onUpdate]);
-  
+
   // 处理内容变化
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (isComposingRef.current) return;
-    
+
     const newContent = e.target.value;
     const changes: Partial<TextElement> = { content: newContent };
-    
+
     setLocalContent(newContent);
     saveToHistory(changes);
     onUpdate(changes);
-    
+
     // 自动调整文本框高度以适应内容
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
       textAreaRef.current.style.height = textAreaRef.current.scrollHeight + 'px';
-      
+
       // 更新元素高度
       const heightChanges = { height: textAreaRef.current.scrollHeight };
       onUpdate(heightChanges);
     }
   };
-  
+
   // 处理IME输入
   const handleCompositionStart = () => {
     isComposingRef.current = true;
   };
-  
+
   const handleCompositionEnd = (e: React.CompositionEvent) => {
     isComposingRef.current = false;
     // 当IME输入完成时触发内容变化处理
@@ -148,12 +184,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       e.preventDefault();
       onFinishEditing();
     }
-    
+
     // 按Esc完成编辑
     if (e.key === 'Escape') {
       onFinishEditing();
     }
-    
+
     // 支持快捷键操作
     if (e.ctrlKey || e.metaKey) {
       switch (e.key.toLowerCase()) {
@@ -183,36 +219,43 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         case 'v':
           // 允许粘贴，但稍后处理
           break;
+        case 'a':
+          // 允许全选
+          break;
+        case 'x':
+          // 允许剪切
+          break;
         default:
-          e.preventDefault(); // 阻止其他默认的Ctrl组合键行为
+          // 只有当不是字母、数字等普通输入键时才阻止默认行为
+          // 这样可以确保用户可以正常输入文本
           break;
       }
     }
   };
-  
+
   // 处理粘贴事件，移除富文本格式
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    
+
     // 获取纯文本
     const text = e.clipboardData.getData('text/plain');
-    
+
     // 在光标位置插入文本
     if (textAreaRef.current) {
       const start = textAreaRef.current.selectionStart;
       const end = textAreaRef.current.selectionEnd;
       const newValue = localContent.slice(0, start) + text + localContent.slice(end);
-      
+
       setLocalContent(newValue);
       const changes = { content: newValue };
       saveToHistory(changes);
       onUpdate(changes);
-      
+
       // 更新光标位置
       setTimeout(() => {
         if (textAreaRef.current) {
           textAreaRef.current.selectionStart = textAreaRef.current.selectionEnd = start + text.length;
-          
+
           // 重新计算高度
           textAreaRef.current.style.height = 'auto';
           textAreaRef.current.style.height = textAreaRef.current.scrollHeight + 'px';
@@ -236,10 +279,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // 切换下划线状态并保存到元素属性
       const newValue = !isUnderlined;
       setIsUnderlined(newValue);
-      
+
       // 获取当前textDecoration属性
       let textDecoration = element.textDecoration || '';
-      
+
       if (newValue) {
         // 添加下划线
         if (!textDecoration.includes('underline')) {
@@ -249,14 +292,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         // 移除下划线
         textDecoration = textDecoration.replace('underline', '').trim();
       }
-      
+
       handleStyleChange('textDecoration', textDecoration);
     }
   };
 
-  // 富文本工具栏
-  const renderToolbar = () => (
-    <div className="rich-text-toolbar" style={{
+  // 上部工具栏
+  const renderTopToolbar = () => (
+    <div className="rich-text-toolbar-top" style={{
       backgroundColor: '#f5f5f5',
       border: '1px solid #ddd',
       borderRadius: '4px 4px 0 0',
@@ -268,7 +311,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       fontSize: '12px'
     }}>
       {/* 撤销/重做按钮 */}
-      <button 
+      <button
         className={`toolbar-btn ${historyIndex <= 0 ? 'disabled' : ''}`}
         onClick={handleUndo}
         title="撤销 (Ctrl+Z)"
@@ -283,7 +326,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       >
         ↶
       </button>
-      <button 
+      <button
         className={`toolbar-btn ${historyIndex >= history.length - 1 ? 'disabled' : ''}`}
         onClick={handleRedo}
         title="重做 (Ctrl+Shift+Z)"
@@ -298,11 +341,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       >
         ↷
       </button>
-      
+
       <div style={{ width: '1px', height: '16px', backgroundColor: '#ddd', margin: '0 4px' }}></div>
-      
+
       {/* 文本样式按钮 */}
-      <button 
+      <button
         className={`toolbar-btn ${localFontWeight === 'bold' ? 'active' : ''}`}
         onClick={() => handleStyleToggle('bold')}
         title="粗体 (Ctrl+B)"
@@ -317,7 +360,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       >
         B
       </button>
-      <button 
+      <button
         className={`toolbar-btn ${localFontStyle === 'italic' ? 'active' : ''}`}
         onClick={() => handleStyleToggle('italic')}
         title="斜体 (Ctrl+I)"
@@ -332,7 +375,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       >
         I
       </button>
-      <button 
+      <button
         className={`toolbar-btn ${isUnderlined ? 'active' : ''}`}
         onClick={() => handleStyleToggle('underline')}
         title="下划线 (Ctrl+U)"
@@ -347,11 +390,106 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       >
         U
       </button>
-      
+
       <div style={{ width: '1px', height: '16px', backgroundColor: '#ddd', margin: '0 4px' }}></div>
-      
+
+      {/* 颜色选择器 */}
+      <input
+        type="color"
+        className="color-picker"
+        value={localColor}
+        onChange={(e) => {
+          setLocalColor(e.target.value);
+          handleStyleChange('color', e.target.value);
+        }}
+        title="文本颜色"
+        style={{
+          width: '25px',
+          height: '25px',
+          padding: '0',
+          border: '1px solid #ccc',
+          borderRadius: '3px',
+          cursor: 'pointer'
+        }}
+      />
+
+      <div style={{ width: '1px', height: '16px', backgroundColor: '#ddd', margin: '0 4px' }}></div>
+
+      {/* 文本对齐按钮 */}
+      <div className="text-align-buttons" style={{ display: 'flex' }}>
+        <button
+          className={`toolbar-btn ${localTextAlign === 'left' ? 'active' : ''}`}
+          onClick={() => {
+            setLocalTextAlign('left');
+            handleStyleChange('textAlign', 'left');
+          }}
+          title="左对齐"
+          style={{
+            padding: '4px 8px',
+            border: '1px solid #ccc',
+            borderRadius: '3px 0 0 3px',
+            backgroundColor: localTextAlign === 'left' ? '#e3f2fd' : 'white',
+            cursor: 'pointer',
+            borderRight: 'none'
+          }}
+        >
+          ⬅
+        </button>
+        <button
+          className={`toolbar-btn ${localTextAlign === 'center' ? 'active' : ''}`}
+          onClick={() => {
+            setLocalTextAlign('center');
+            handleStyleChange('textAlign', 'center');
+          }}
+          title="居中对齐"
+          style={{
+            padding: '4px 8px',
+            border: '1px solid #ccc',
+            backgroundColor: localTextAlign === 'center' ? '#e3f2fd' : 'white',
+            cursor: 'pointer',
+            borderRight: 'none',
+            borderLeft: 'none'
+          }}
+        >
+          ⬌
+        </button>
+        <button
+          className={`toolbar-btn ${localTextAlign === 'right' ? 'active' : ''}`}
+          onClick={() => {
+            setLocalTextAlign('right');
+            handleStyleChange('textAlign', 'right');
+          }}
+          title="右对齐"
+          style={{
+            padding: '4px 8px',
+            border: '1px solid #ccc',
+            borderRadius: '0 3px 3px 0',
+            backgroundColor: localTextAlign === 'right' ? '#e3f2fd' : 'white',
+            cursor: 'pointer',
+            borderLeft: 'none'
+          }}
+        >
+          ➡
+        </button>
+      </div>
+    </div>
+  );
+
+  // 下部工具栏（字体选择和字号选择）
+  const renderBottomToolbar = () => (
+    <div className="rich-text-toolbar-bottom" style={{
+      backgroundColor: '#f9f9f9',
+      border: '1px solid #ddd',
+      borderTop: 'none',
+      borderRadius: '0 0 4px 4px',
+      padding: '5px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '12px'
+    }}>
       {/* 字体选择器 */}
-      <select 
+      <select
         className="font-family-select"
         value={localFontFamily}
         onChange={(e) => {
@@ -374,9 +512,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <option value="'SimSun', serif">宋体</option>
         <option value="'SimHei', sans-serif">黑体</option>
       </select>
-      
+
       {/* 字号选择器 */}
-      <select 
+      <select
         className="font-size-select"
         value={localFontSize}
         onChange={(e) => {
@@ -396,109 +534,44 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <option key={size} value={size}>{size}px</option>
         ))}
       </select>
-      
-      {/* 颜色选择器 */}
-      <input 
-        type="color" 
-        className="color-picker"
-        value={localColor} 
-        onChange={(e) => {
-          setLocalColor(e.target.value);
-          handleStyleChange('color', e.target.value);
-        }}
-        title="文本颜色"
-        style={{
-          width: '25px',
-          height: '25px',
-          padding: '0',
-          border: '1px solid #ccc',
-          borderRadius: '3px',
-          cursor: 'pointer'
-        }}
-      />
-      
-      <div style={{ width: '1px', height: '16px', backgroundColor: '#ddd', margin: '0 4px' }}></div>
-      
-      {/* 文本对齐按钮 */}
-      <div className="text-align-buttons" style={{ display: 'flex' }}>
-        <button 
-          className={`toolbar-btn ${localTextAlign === 'left' ? 'active' : ''}`}
-          onClick={() => {
-            setLocalTextAlign('left');
-            handleStyleChange('textAlign', 'left');
-          }}
-          title="左对齐"
-          style={{
-            padding: '4px 8px',
-            border: '1px solid #ccc',
-            borderRadius: '3px 0 0 3px',
-            backgroundColor: localTextAlign === 'left' ? '#e3f2fd' : 'white',
-            cursor: 'pointer',
-            borderRight: 'none'
-          }}
-        >
-          ⬅
-        </button>
-        <button 
-          className={`toolbar-btn ${localTextAlign === 'center' ? 'active' : ''}`}
-          onClick={() => {
-            setLocalTextAlign('center');
-            handleStyleChange('textAlign', 'center');
-          }}
-          title="居中对齐"
-          style={{
-            padding: '4px 8px',
-            border: '1px solid #ccc',
-            backgroundColor: localTextAlign === 'center' ? '#e3f2fd' : 'white',
-            cursor: 'pointer',
-            borderRight: 'none',
-            borderLeft: 'none'
-          }}
-        >
-          ⬌
-        </button>
-        <button 
-          className={`toolbar-btn ${localTextAlign === 'right' ? 'active' : ''}`}
-          onClick={() => {
-            setLocalTextAlign('right');
-            handleStyleChange('textAlign', 'right');
-          }}
-          title="右对齐"
-          style={{
-            padding: '4px 8px',
-            border: '1px solid #ccc',
-            borderRadius: '0 3px 3px 0',
-            backgroundColor: localTextAlign === 'right' ? '#e3f2fd' : 'white',
-            cursor: 'pointer',
-            borderLeft: 'none'
-          }}
-        >
-          ➡
-        </button>
-      </div>
     </div>
   );
 
   // 文本编辑区域
   if (isEditing) {
+    // 计算工具栏的高度估计值，用于调整定位
+    const toolbarHeight = 40; // 估计工具栏高度
+
     return (
       <div className="rich-text-editor-wrapper" style={{
-        position: 'relative',
-        width: '100%',
-        minHeight: '100%',
-        zIndex: 10
+        position: 'absolute', // 改为绝对定位以独立于父容器
+        width: `${element.width}px`, // 使用元素的实际宽度
+        minHeight: `${element.height + toolbarHeight * 2}px`, // 确保有足够空间容纳工具栏
+        zIndex: 200, // 非常高的zIndex确保显示在所有元素之上
+        overflow: 'visible', // 确保内容不被裁剪
+        left: 0, // 相对于父容器定位
+        top: `-${toolbarHeight}px` // 向上偏移显示上部工具栏
       }}>
-        {renderToolbar()}
+        {/* 上部工具栏 - 移到文本框上方 */}
+        <div style={{
+          position: 'relative',
+          zIndex: 201,
+          marginBottom: '2px' // 工具栏与文本框之间的间距
+        }}>
+          {renderTopToolbar()}
+        </div>
+
+        {/* 文本输入区域 */}
         <textarea
           ref={textAreaRef}
           value={localContent}
           onChange={handleContentChange}
-          onBlur={onFinishEditing}
+          // 移除直接的onBlur事件，避免点击工具栏时退出编辑状态
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
-          placeholder="点击输入文本..."
+          placeholder="输入文本"
           style={{
             fontFamily: localFontFamily,
             fontSize: `${localFontSize}px`,
@@ -507,28 +580,40 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             fontStyle: localFontStyle,
             textAlign: localTextAlign,
             textDecoration: isUnderlined ? 'underline' : 'none',
-            width: `${element.width}px`,
-            height: 'auto',
-            minHeight: `${element.height}px`,
+            width: '100%', // 使用相对宽度
+            height: `${element.height}px`, // 固定高度为元素高度
+            minHeight: '50px', // 最小高度
             resize: 'none',
-            border: '2px solid #2196F3',
-            borderRadius: '0 0 4px 4px',
+            border: '1px solid #ddd', // 完整边框
             padding: '8px',
             outline: 'none',
-            backgroundColor: 'white',
-            position: 'absolute',
+            backgroundColor: '#ffffff',
+            position: 'relative',
             left: 0,
-            top: '30px', // 为工具栏留出空间
-            boxSizing: 'border-box'
+            top: 0,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
           }}
+          className="no-scrollbar"
         />
+
+        {/* 下部工具栏 - 移到文本框下方 */}
+        <div style={{
+          position: 'relative',
+          zIndex: 201,
+          marginTop: '2px' // 文本框与工具栏之间的间距
+        }}>
+          {renderBottomToolbar()}
+        </div>
       </div>
     );
   }
 
   // 只读模式下的文本展示
   return (
-    <div 
+    <div
       className="rich-text-display"
       style={{
         fontFamily: localFontFamily,
@@ -543,11 +628,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         wordBreak: 'break-word',
         padding: '4px',
         whiteSpace: 'pre-wrap', // 保留换行符
-        lineHeight: '1.4'
+        lineHeight: '1.4',
+        // 添加居中样式
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
-      title={localContent || '双击编辑文本'}
+      title={localContent || '双击输入文本'}
     >
-      {localContent || <span style={{ color: '#ccc', fontStyle: 'italic' }}>双击编辑文本</span>}
+      {localContent || <span style={{ color: '#ccc', fontStyle: 'italic' }}>双击输入文本</span>}
     </div>
   );
 };

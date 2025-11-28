@@ -18,8 +18,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = () => {
     { keys: 'Ctrl + Y', description: '重做' },
     { keys: 'Ctrl + C', description: '复制' },
     { keys: 'Ctrl + V', description: '粘贴' },
-    { keys: 'Alt + 滚轮', description: '缩放画布' },
-    { keys: '空格 + 拖拽', description: '移动画布' },
+    { keys: 'Shift + 滚轮', description: '缩放画布' },
     { keys: '双击文本', description: '编辑文本' },
   ];
 

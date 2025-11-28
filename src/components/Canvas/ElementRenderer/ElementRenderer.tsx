@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { CanvasElement , TextElement } from './types';
-import RichTextEditor from './RichTextEditor';
+import type { CanvasElement, TextElement } from '../types';
+import RichTextEditor from '../RichTextEditor/RichTextEditor';
 
 interface ElementRendererProps {
   element: CanvasElement;
@@ -8,21 +8,25 @@ interface ElementRendererProps {
   onDoubleClick?: (elementId: string, event: React.MouseEvent) => void;
   onTextUpdate?: (elementId: string, updates: Partial<TextElement>) => void;
   onDragStart?: (elementId: string, event: React.MouseEvent) => void;
+  onStartEditing?: () => void;
+  onStopEditing?: () => void;
 }
 
-const ElementRenderer: React.FC<ElementRendererProps> = ({ 
-  element, 
-  onSelect, 
+const ElementRenderer: React.FC<ElementRendererProps> = ({
+  element,
+  onSelect,
   onDoubleClick,
   onTextUpdate,
-  onDragStart
+  onDragStart,
+  onStartEditing,
+  onStopEditing
 }) => {
   // 处理元素点击事件
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(element.id, e);
   };
-  
+
   // 处理元素鼠标按下事件（用于拖拽开始）
   const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,22 +43,25 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
     }
     if (element.type === 'text') {
       setIsEditing(true);
+      onStartEditing?.(); // 通知父组件开始编辑
+      // 强制进入编辑模式，确保双击中间区域有效
     }
   };
 
   // 状态管理
   const [isEditing, setIsEditing] = useState(false);
-  
+
   // 处理文本元素更新
   const handleTextUpdate = (updatedProps: Partial<TextElement>) => {
     if (element.type === 'text' && onTextUpdate) {
       onTextUpdate(element.id, updatedProps);
     }
   };
-  
+
   // 完成文本编辑
   const handleFinishEditing = () => {
     setIsEditing(false);
+    onStopEditing?.(); // 通知父组件结束编辑
   };
 
   // 元素的基础样式
@@ -106,27 +113,49 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
       );
 
     case 'triangle':
-      // 使用CSS创建三角形
-      const triangleSize = Math.min(element.width, element.height);
-      const triangleBorderSize = triangleSize / 2;
-      
+      // 使用CSS创建三角形，支持动态边框宽度和颜色
       return (
         <div
           className={`canvas-element canvas-shape ${element.selected ? 'selected' : ''}`}
           style={{
             ...baseStyle,
-            width: 0,
-            height: 0,
-            borderLeft: `${triangleBorderSize}px solid transparent`,
-            borderRight: `${triangleBorderSize}px solid transparent`,
-            borderBottom: `${triangleSize}px solid ${element.fill}`,
+            padding: `${element.strokeWidth}px`,
+            boxSizing: 'border-box',
+            width: element.width,
+            height: element.height,
             backgroundColor: 'transparent',
-            borderTop: 'none'
+            position: 'relative'
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
-        />
+        >
+          {/* 边框 - 使用外层div实现 */}
+          <div
+            style={{
+              position: 'absolute',
+              width: 0,
+              height: 0,
+              borderLeft: `${element.width / 2}px solid transparent`,
+              borderRight: `${element.width / 2}px solid transparent`,
+              borderBottom: `${element.height}px solid ${element.stroke || 'black'}`
+            }}
+          ></div>
+
+          {/* 填充 - 使用内层div实现，通过调整大小和位置实现边框效果 */}
+          <div
+            style={{
+              position: 'absolute',
+              width: 0,
+              height: 0,
+              borderLeft: `${(element.width - element.strokeWidth * 2) / 2}px solid transparent`,
+              borderRight: `${(element.width - element.strokeWidth * 2) / 2}px solid transparent`,
+              borderBottom: `${element.height - element.strokeWidth * 2}px solid ${element.fill || 'transparent'}`,
+              left: element.strokeWidth,
+              top: element.strokeWidth
+            }}
+          ></div>
+        </div>
       );
 
     case 'image':
@@ -153,12 +182,13 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           style={{
             ...baseStyle,
             backgroundColor: 'transparent',
-            border: 'none',
-            padding: '5px',
+            border: element.selected && !isEditing ? '2px solid #2196F3' : 'none',
+            padding: isEditing ? '0' : '5px', // 编辑模式下移除内边距
             cursor: isEditing ? 'text' : 'move',
             outline: 'none',
             resize: 'none',
-            overflow: 'auto'
+            overflow: isEditing ? 'visible' : 'hidden', // 编辑模式下允许内容溢出
+            position: 'relative' // 确保定位正确
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}

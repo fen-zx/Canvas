@@ -48,7 +48,7 @@ export type CanvasElement = ShapeElement | ImageElement | TextElement;
 export interface CanvasState {
   elements: CanvasElement[];
   selectedElementIds: string[];
-  currentTool: 'select' | 'rect' | 'circle' | 'triangle' | 'image' | 'text';
+  currentTool: 'select' | 'rect' | 'circle' | 'triangle' | 'image' | 'text' | 'shape';
   position: { x: number; y: number };
   scale: number;
 }
@@ -59,4 +59,21 @@ export interface ToolButtonProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+}
+
+// 图案类型定义
+export interface Pattern {
+  id: string;
+  name: string;
+  type: 'rect' | 'circle' | 'triangle';
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  width: number;
+  height: number;
+}
+
+// 侧边栏属性接口
+export interface PatternSidebarProps {
+  onSelectPattern: (pattern: Pattern) => void;
 }

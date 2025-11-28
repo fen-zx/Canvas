@@ -145,8 +145,15 @@ export const useCanvasState = (initialState = defaultCanvasState) => {
 
   // 移动选中的元素
   const moveSelectedElements = useCallback((deltaX: number, deltaY: number) => {
-    state.selectedElementIds.forEach(id => moveElement(id, deltaX, deltaY));
-  }, [state.selectedElementIds, moveElement]);
+    setState(prevState => ({
+      ...prevState,
+      elements: prevState.elements.map(element =>
+        prevState.selectedElementIds.includes(element.id)
+          ? { ...element, x: element.x + deltaX, y: element.y + deltaY } as CanvasElement
+          : element
+      )
+    }));
+  }, []);
   
   // 旋转元素
   const rotateElement = useCallback((elementId: string, deltaRotation: number) => {
