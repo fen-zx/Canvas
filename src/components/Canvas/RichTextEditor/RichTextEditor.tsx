@@ -544,19 +544,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     return (
       <div className="rich-text-editor-wrapper" style={{
-        position: 'absolute', // 改为绝对定位以独立于父容器
+        position: 'relative', // 相对定位，作为工具栏的定位参考
         width: `${element.width}px`, // 使用元素的实际宽度
-        minHeight: `${element.height + toolbarHeight * 2}px`, // 确保有足够空间容纳工具栏
+        height: `${element.height}px`, // 固定高度为元素高度
         zIndex: 200, // 非常高的zIndex确保显示在所有元素之上
-        overflow: 'visible', // 确保内容不被裁剪
-        left: 0, // 相对于父容器定位
-        top: `-${toolbarHeight}px` // 向上偏移显示上部工具栏
+        overflow: 'visible' // 确保内容不被裁剪
       }}>
-        {/* 上部工具栏 - 移到文本框上方 */}
+        {/* 上部工具栏 - 绝对定位在文本元素上方，增加更多间距 */}
         <div style={{
-          position: 'relative',
+          position: 'absolute',
+          top: '-80px', // 进一步上移，确保完全避开文本
+          left: 0,
+          width: '100%',
           zIndex: 201,
-          marginBottom: '2px' // 工具栏与文本框之间的间距
         }}>
           {renderTopToolbar()}
         </div>
@@ -585,7 +585,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             minHeight: '50px', // 最小高度
             resize: 'none',
             border: '1px solid #ddd', // 完整边框
-            padding: '8px',
+            padding: '5px',
             outline: 'none',
             backgroundColor: '#ffffff',
             position: 'relative',
@@ -599,11 +599,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           className="no-scrollbar"
         />
 
-        {/* 下部工具栏 - 移到文本框下方 */}
+        {/* 下部工具栏 - 绝对定位在文本元素下方 */}
         <div style={{
-          position: 'relative',
+          position: 'absolute',
+          bottom: `-${toolbarHeight}px`,
+          left: 0,
+          width: '100%',
           zIndex: 201,
-          marginTop: '2px' // 文本框与工具栏之间的间距
         }}>
           {renderBottomToolbar()}
         </div>
@@ -623,16 +625,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         fontStyle: localFontStyle,
         textAlign: localTextAlign,
         textDecoration: element.textDecoration || (isUnderlined ? 'underline' : 'none'),
-        width: `${element.width}px`,
-        minHeight: `${element.height}px`,
+        width: '100%', // 100%宽度匹配父容器
+        height: '100%', // 100%高度匹配父容器
         wordBreak: 'break-word',
-        padding: '4px',
+        padding: '5px', // 与父容器保持一致的内边距
         whiteSpace: 'pre-wrap', // 保留换行符
         lineHeight: '1.4',
-        // 添加居中样式
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+        zIndex: 10, // 确保文本显示在合适的层级
+        position: 'absolute', // 绝对定位确保与父容器完全重叠
+        left: 0,
+        top: 0,
+        backgroundColor: 'transparent', // 确保背景透明
+        overflow: 'visible' // 确保内容不被裁剪
       }}
       title={localContent || '双击输入文本'}
     >

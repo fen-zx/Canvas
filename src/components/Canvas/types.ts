@@ -1,7 +1,7 @@
 // 基础元素属性
 interface BaseElement {
   id: string;
-  type: 'rect' | 'circle' | 'triangle' | 'image' | 'text';
+  type: 'rect' | 'circle' | 'star' | 'image' | 'text';
   x: number;
   y: number;
   width: number;
@@ -16,16 +16,17 @@ interface BaseElement {
 
 // 图形元素属性
 interface ShapeElement extends BaseElement {
-  type: 'rect' | 'circle' | 'triangle';
+  type: 'rect' | 'circle' | 'star';
   fill: string;
   stroke: string;
   strokeWidth: number;
 }
 
 // 图片元素属性
-interface ImageElement extends BaseElement {
+export interface ImageElement extends BaseElement {
   type: 'image';
   src: string;
+  filter?: string; // 支持滤镜效果
 }
 
 // 文本元素属性
@@ -65,7 +66,7 @@ export interface ToolButtonProps {
 export interface Pattern {
   id: string;
   name: string;
-  type: 'rect' | 'circle' | 'triangle';
+  type: 'rect' | 'circle' | 'star';
   fill: string;
   stroke: string;
   strokeWidth: number;

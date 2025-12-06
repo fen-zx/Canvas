@@ -3,12 +3,12 @@ import './Canvas.css';
 import useCanvasState from '../components/Canvas/useCanvasState';
 import ElementRenderer from '../components/Canvas/ElementRenderer/ElementRenderer';
 import Toolbar from '../components/Canvas/Toolbar/Toolbar';
-// ImageUploader removed
 import CanvasStatus from '../components/Canvas/CanvasStatus/CanvasStatus';
 import KeyboardShortcuts from '../components/Canvas/KeyboardShortcuts/KeyboardShortcuts';
 import PatternSidebar from '../components/Canvas/PatternSidebar/PatternSidebar';
 import ColorPicker from '../components/Canvas/ColorPicker/ColorPicker';
-import type { CanvasElement, Pattern } from '../components/Canvas/types';
+import FilterPicker from '../components/Canvas/FilterPicker/FilterPicker';
+import type { CanvasElement, Pattern, ImageElement } from '../components/Canvas/types';
 
 interface CanvasProps {
 }
@@ -18,6 +18,7 @@ const Canvas: React.FC<CanvasProps> = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // 拖拽和交互状态
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
@@ -41,6 +42,10 @@ const Canvas: React.FC<CanvasProps> = () => {
   const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 }); // 颜色选择器位置
   const [colorPickerTargetElement, setColorPickerTargetElement] = useState<string | null>(null); // 颜色选择器目标元素
 
+  const [showFilterPicker, setShowFilterPicker] = useState(false); // 控制滤镜选择器显示
+  const [filterPickerPosition, setFilterPickerPosition] = useState({ x: 0, y: 0 }); // 滤镜选择器位置
+  const [filterPickerTargetElement, setFilterPickerTargetElement] = useState<string | null>(null); // 滤镜选择器目标元素
+
   // 使用自定义Hook管理画布状态
   const canvasState = useCanvasState({
     elements: [],
@@ -49,6 +54,9 @@ const Canvas: React.FC<CanvasProps> = () => {
     position: { x: 0, y: 0 },
     scale: 1
   });
+
+  // 线条模式状态管理
+  const [isLineMode, setIsLineMode] = useState(false);
 
   // 从状态中解构需要的属性和方法
   const {
@@ -69,6 +77,67 @@ const Canvas: React.FC<CanvasProps> = () => {
     rotateSelectedElements,
     resizeSelectedElements
   } = canvasState;
+
+  // 导出JSON功能
+  const handleExport = () => {
+    const canvasData = {
+      elements: elements.map(element => ({
+        ...element,
+        // 移除临时状态属性
+        isDragging: undefined,
+        isHighlighted: undefined
+      }))
+    };
+
+    const dataStr = JSON.stringify(canvasData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+    const exportFileDefaultName = `canvas-export-${new Date().toISOString().slice(0, 10)}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  // 导入JSON功能
+  const handleImport = () => {
+    if (importFileInputRef.current) {
+      importFileInputRef.current.click();
+    }
+  };
+
+  // 处理导入文件
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const canvasData = JSON.parse(content);
+
+        // 清除当前画布上的所有元素
+        clearSelection();
+        canvasData.elements.forEach((element: any) => {
+          // 为每个导入的元素生成新的ID，避免ID冲突
+          const { id, ...elementWithoutId } = element;
+          addElement(elementWithoutId as any);
+        });
+      } catch (error) {
+        console.error('导入失败:', error);
+        alert('导入失败，请检查JSON文件格式是否正确');
+      }
+    };
+
+    reader.readAsText(file);
+
+    // 重置文件输入
+    if (importFileInputRef.current) {
+      importFileInputRef.current.value = '';
+    }
+  };
 
   // 处理从侧边栏选择图案
   const handleSelectPattern = useCallback((pattern: Pattern) => {
@@ -160,7 +229,7 @@ const Canvas: React.FC<CanvasProps> = () => {
         const canvasCoords = clientToCanvasCoords(e.clientX, e.clientY);
 
         switch (currentTool) {
-          // 当选择图形工具时，使用选中的图案或默认矩形
+          // 当选择图形工具时，使用选中的图案
           case 'shape':
             if (selectedPattern) {
               // 使用从侧边栏选择的图案
@@ -175,20 +244,6 @@ const Canvas: React.FC<CanvasProps> = () => {
                 fill: selectedPattern.fill,
                 stroke: selectedPattern.stroke,
                 strokeWidth: selectedPattern.strokeWidth
-              } as Omit<CanvasElement, 'id' | 'selected' | 'zIndex'>);
-            } else {
-              // 默认添加矩形
-              addElement({
-                type: 'rect',
-                x: canvasCoords.x - 50,
-                y: canvasCoords.y - 50,
-                width: 100,
-                height: 100,
-                rotation: 0,
-                scale: 1,
-                fill: '#2196F3',
-                stroke: '#1976D2',
-                strokeWidth: 2
               } as Omit<CanvasElement, 'id' | 'selected' | 'zIndex'>);
             }
             break;
@@ -524,11 +579,10 @@ const Canvas: React.FC<CanvasProps> = () => {
       }
     }, 0);
 
-    // 对于pattern-sidebar生成的元素（矩形、圆形、三角形），显示颜色选择器
-    // 但只有在没有发生拖拽操作时才显示
+    // 根据元素类型显示不同的选择器
     const element = elements.find(el => el.id === elementId);
-    if (element && ['rect', 'circle', 'triangle'].includes(element.type) && !hasDragged) {
-      // 计算颜色选择器位置
+    if (element && !hasDragged) {
+      // 计算选择器位置
       const canvasRect = canvasRef.current?.getBoundingClientRect();
       const containerRect = containerRef.current?.getBoundingClientRect();
 
@@ -537,12 +591,24 @@ const Canvas: React.FC<CanvasProps> = () => {
         const elementScreenX = containerRect.left + position.x + (element.x + element.width / 2) * scale;
         const elementScreenY = containerRect.top + position.y + (element.y + element.height) * scale + 10; // 显示在元素下方
 
-        setColorPickerPosition({
-          x: elementScreenX - 140, // 居中显示
-          y: elementScreenY
-        });
-        setColorPickerTargetElement(elementId);
-        setShowColorPicker(true);
+        // 修复：移除'triangle'类型检查，因为它在BaseElement接口中未定义
+        if (['rect', 'circle', 'star'].includes(element.type)) {
+          // 显示颜色选择器
+          setColorPickerPosition({
+            x: elementScreenX - 140, // 居中显示
+            y: elementScreenY
+          });
+          setColorPickerTargetElement(elementId);
+          setShowColorPicker(true);
+        } else if (element.type === 'image') {
+          // 显示滤镜选择器
+          setFilterPickerPosition({
+            x: elementScreenX - 140, // 居中显示
+            y: elementScreenY
+          });
+          setFilterPickerTargetElement(elementId);
+          setShowFilterPicker(true);
+        }
       }
     }
   };
@@ -583,6 +649,18 @@ const Canvas: React.FC<CanvasProps> = () => {
     }
   };
 
+  // 处理滤镜变更
+  const handleFilterChange = (filter: string) => {
+    if (filterPickerTargetElement) {
+      const element = elements.find(el => el.id === filterPickerTargetElement);
+      if (element && element.type === 'image') {
+        updateElement(filterPickerTargetElement, {
+          filter: filter
+        });
+      }
+    }
+  };
+
   // 处理颜色选择（保留原有方法兼容性）
   const handleColorSelect = (color: string) => {
     if (colorPickerTargetElement) {
@@ -596,10 +674,16 @@ const Canvas: React.FC<CanvasProps> = () => {
     setShowColorPicker(false);
   };
 
-  // 关闭颜色选择器
+  // 处理颜色选择器关闭
   const handleColorPickerClose = () => {
     setShowColorPicker(false);
     setColorPickerTargetElement(null);
+  };
+
+  // 处理滤镜选择器关闭
+  const handleFilterPickerClose = () => {
+    setShowFilterPicker(false);
+    setFilterPickerTargetElement(null);
   };
 
   // 处理元素拖拽开始
@@ -838,36 +922,51 @@ const Canvas: React.FC<CanvasProps> = () => {
 
   // 根据调整手柄的方向获取其位置
   const getPositionForResizeHandle = (handle: string): React.CSSProperties => {
-    const padding = 5;
-    const handleSize = 10; // 假设控制点大小为10px
-
     switch (handle) {
-      // 边上的点往外移，中心点移到边上
+      // 边上的点 - 中心点移到边上
       case 'n':
-        return { top: -handleSize, left: '50%', transform: 'translateX(-50%)' };
+        return { top: 0, left: '50%' };
       case 's':
-        return { bottom: -handleSize, left: '50%', transform: 'translateX(-50%)' };
+        return { bottom: 0, left: '50%' };
       case 'w':
-        return { left: -handleSize, top: '50%', transform: 'translateY(-50%)' };
+        return { left: 0, top: '50%' };
       case 'e':
-        return { right: -handleSize, top: '50%', transform: 'translateY(-50%)' };
-      // 四角的点再内收，与边上的点在一条线上
+        return { right: 0, top: '50%' };
+      // 四角的点 - 定位在角落
       case 'nw':
-        return { top: handleSize / 2, left: handleSize / 2, transform: 'translate(-50%, -50%)' };
+        return { top: 0, left: 0 };
       case 'ne':
-        return { top: handleSize / 2, right: handleSize / 2, transform: 'translate(50%, -50%)' };
+        return { top: 0, right: 0 };
       case 'sw':
-        return { bottom: handleSize / 2, left: handleSize / 2, transform: 'translate(-50%, 50%)' };
+        return { bottom: 0, left: 0 };
       case 'se':
-        return { bottom: handleSize / 2, right: handleSize / 2, transform: 'translate(50%, 50%)' };
+        return { bottom: 0, right: 0 };
       default:
         return {};
+    }
+  };
+
+  // 处理鼠标释放事件
+  const handleMouseUp = () => {
+    if (isResizing) {
+      setIsResizing(false);
+      setResizeHandle(null);
+      document.body.style.cursor = 'default';
+
+      // 移除所有手柄的clicked类名
+      document.querySelectorAll('.resize-handle.clicked').forEach(handle => {
+        handle.classList.remove('clicked');
+      });
     }
   };
 
   // 处理调整大小手柄的鼠标按下事件
   const handleResizeHandleMouseDown = (e: React.MouseEvent, handle: string) => {
     e.stopPropagation();
+
+    // 给点击的handle添加clicked类名
+    const handleElement = e.target as HTMLElement;
+    handleElement.classList.add('clicked');
 
     setIsResizing(true);
     setResizeHandle(handle);
@@ -885,8 +984,11 @@ const Canvas: React.FC<CanvasProps> = () => {
   // 键盘快捷键处理
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 删除选中的元素 - 只有在不在文本编辑模式下才执行
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementIds.length > 0 && !isTextEditing) {
+      // 检查是否有输入框获得焦点
+      const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+
+      // 删除选中的元素 - 只有在不在文本编辑模式且没有输入框获得焦点时才执行
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementIds.length > 0 && !isTextEditing && !isInputFocused) {
         e.preventDefault();
         deleteSelectedElements();
       }
@@ -931,9 +1033,31 @@ const Canvas: React.FC<CanvasProps> = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedElementIds, updateCanvasPosition, updateCanvasScale, deleteSelectedElements, rotateSelectedElements, resizeSelectedElements]);
 
+  // 全局鼠标事件监听
+  useEffect(() => {
+    // 只有在调整大小状态时才添加事件监听
+    if (isResizing) {
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing]);
+
   return (
     <>
-      <Toolbar currentTool={currentTool} onToolChange={setCurrentTool} />
+      <Toolbar
+        currentTool={currentTool}
+        onToolChange={setCurrentTool}
+        onExport={handleExport}
+        onImport={handleImport}
+        isLineMode={isLineMode}
+        onLineModeToggle={() => {
+          const newValue = !isLineMode;
+          console.log('线条模式切换:', isLineMode, '->', newValue);
+          setIsLineMode(newValue);
+        }}
+      />
       {/* ImageUploader removed */}
 
       {/* 隐藏的文件输入 */}
@@ -943,6 +1067,15 @@ const Canvas: React.FC<CanvasProps> = () => {
         onChange={handleFileInputChange}
         accept="image/*"
         style={{ display: 'none' }}
+      />
+
+      {/* JSON导入的隐藏输入 */}
+      <input
+        type="file"
+        ref={importFileInputRef}
+        style={{ display: 'none' }}
+        accept=".json"
+        onChange={handleFileImport}
       />
 
       <div
@@ -960,7 +1093,24 @@ const Canvas: React.FC<CanvasProps> = () => {
             transformOrigin: '0 0'
           }}
         >
-          <div className="canvas-grid"></div>
+          <div
+            className={`canvas-grid ${isLineMode ? 'line-mode' : ''}`}
+            data-is-line-mode={isLineMode}
+          ></div>
+          {/* 调试信息 */}
+          <div style={{
+            position: 'fixed',
+            top: 10,
+            right: 10,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '5px',
+            fontSize: '12px',
+            zIndex: 10000
+          }}>
+            线条模式: {isLineMode ? '开启' : '关闭'}
+          </div>
 
           {/* 渲染所有画布元素 */}
           {elements.map(element => (
@@ -1006,10 +1156,22 @@ const Canvas: React.FC<CanvasProps> = () => {
                         cursor: getCursorForResizeHandle(handle),
                         pointerEvents: 'auto',
                         touchAction: 'none',
-                        transform: 'translate(-50%, -50%)', // 确保手柄中心点在元素边缘
-                        ...getPositionForResizeHandle(handle)
+                        ...getPositionForResizeHandle(handle),
+                        // 根据handle类型调整transform，确保手柄中心点在正确位置
+                        transform: handle.includes('n') && handle.includes('w') ? 'translate(-50%, -50%)' :
+                          handle.includes('n') && handle.includes('e') ? 'translate(50%, -50%)' :
+                            handle.includes('s') && handle.includes('w') ? 'translate(-50%, 50%)' :
+                              handle.includes('s') && handle.includes('e') ? 'translate(50%, 50%)' :
+                                handle === 'n' ? 'translate(-50%, -50%)' :
+                                  handle === 's' ? 'translate(-50%, 50%)' :
+                                    handle === 'w' ? 'translate(-50%, -50%)' :
+                                      handle === 'e' ? 'translate(50%, -50%)' : 'translate(-50%, -50%)'
                       }}
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, handle)}
+                      onMouseUp={(e) => {
+                        const handleElement = e.target as HTMLElement;
+                        handleElement.classList.remove('clicked');
+                      }}
                       onTouchStart={(e) => {
                         e.stopPropagation();
                         // 模拟鼠标按下事件
@@ -1017,6 +1179,10 @@ const Canvas: React.FC<CanvasProps> = () => {
                           { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY } as any,
                           handle
                         );
+                      }}
+                      onTouchEnd={(e) => {
+                        const handleElement = e.target as HTMLElement;
+                        handleElement.classList.remove('clicked');
                       }}
                     />
                   ))}
@@ -1053,6 +1219,23 @@ const Canvas: React.FC<CanvasProps> = () => {
             </React.Fragment>
           ))}
         </div>
+
+        {/* 显示选中元素的坐标 */}
+        {selectedElementIds.length === 1 && (
+          <div className="element-coordinates">
+            {(() => {
+              const selectedElement = elements.find(el => el.id === selectedElementIds[0]);
+              if (selectedElement) {
+                return (
+                  <div>
+                    X: {Math.round(selectedElement.x)}, Y: {Math.round(selectedElement.y)}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        )}
       </div>
 
       {/* 侧边栏 - 只有在选择图形工具时才显示 */}
@@ -1065,10 +1248,34 @@ const Canvas: React.FC<CanvasProps> = () => {
           currentFill={(elements.find(el => el.id === colorPickerTargetElement) as any)?.fill || 'transparent'}
           currentStroke={(elements.find(el => el.id === colorPickerTargetElement) as any)?.stroke || 'black'}
           currentStrokeWidth={(elements.find(el => el.id === colorPickerTargetElement) as any)?.strokeWidth || 2}
+          currentWidth={(elements.find(el => el.id === colorPickerTargetElement) as any)?.width || 100}
+          currentHeight={(elements.find(el => el.id === colorPickerTargetElement) as any)?.height || 100}
           onFillChange={handleFillChange}
           onStrokeChange={handleStrokeChange}
           onStrokeWidthChange={handleStrokeWidthChange}
+          onWidthChange={(width) => {
+            const element = elements.find(el => el.id === colorPickerTargetElement);
+            if (element) {
+              updateElement(colorPickerTargetElement, { width });
+            }
+          }}
+          onHeightChange={(height) => {
+            const element = elements.find(el => el.id === colorPickerTargetElement);
+            if (element) {
+              updateElement(colorPickerTargetElement, { height });
+            }
+          }}
           onClose={handleColorPickerClose}
+        />
+      )}
+
+      {/* 滤镜选择器 - 当showFilterPicker为true时显示 */}
+      {showFilterPicker && filterPickerTargetElement && (
+        <FilterPicker
+          position={filterPickerPosition}
+          currentFilter={(elements.find(el => el.id === filterPickerTargetElement && el.type === 'image') as ImageElement)?.filter || 'none'}
+          onFilterChange={handleFilterChange}
+          onClose={handleFilterPickerClose}
         />
       )}
 

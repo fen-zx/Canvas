@@ -112,49 +112,28 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
         />
       );
 
-    case 'triangle':
-      // 使用CSS创建三角形，支持动态边框宽度和颜色
+    case 'star':
+      // 使用SVG多边形创建五角星，支持动态边框宽度和颜色
       return (
         <div
           className={`canvas-element canvas-shape ${element.selected ? 'selected' : ''}`}
           style={{
             ...baseStyle,
-            padding: `${element.strokeWidth}px`,
-            boxSizing: 'border-box',
             width: element.width,
-            height: element.height,
-            backgroundColor: 'transparent',
-            position: 'relative'
+            height: element.height
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
         >
-          {/* 边框 - 使用外层div实现 */}
-          <div
-            style={{
-              position: 'absolute',
-              width: 0,
-              height: 0,
-              borderLeft: `${element.width / 2}px solid transparent`,
-              borderRight: `${element.width / 2}px solid transparent`,
-              borderBottom: `${element.height}px solid ${element.stroke || 'black'}`
-            }}
-          ></div>
-
-          {/* 填充 - 使用内层div实现，通过调整大小和位置实现边框效果 */}
-          <div
-            style={{
-              position: 'absolute',
-              width: 0,
-              height: 0,
-              borderLeft: `${(element.width - element.strokeWidth * 2) / 2}px solid transparent`,
-              borderRight: `${(element.width - element.strokeWidth * 2) / 2}px solid transparent`,
-              borderBottom: `${element.height - element.strokeWidth * 2}px solid ${element.fill || 'transparent'}`,
-              left: element.strokeWidth,
-              top: element.strokeWidth
-            }}
-          ></div>
+          <svg width="100%" height="100%" viewBox="0 0 100 100">
+            <polygon
+              points="50,10 61,39 92,39 68,58 79,87 50,70 21,87 32,58 8,39 39,39"
+              fill={element.fill === undefined ? 'transparent' : element.fill}
+              stroke={element.stroke || 'black'}
+              strokeWidth={element.strokeWidth || 2}
+            />
+          </svg>
         </div>
       );
 
@@ -166,7 +145,8 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           alt="Canvas image"
           style={{
             ...baseStyle,
-            objectFit: 'contain'
+            objectFit: 'contain',
+            filter: element.filter || 'none'
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
@@ -181,14 +161,13 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           className={`canvas-element canvas-text ${element.selected ? 'selected' : ''}`}
           style={{
             ...baseStyle,
-            backgroundColor: 'transparent',
-            border: element.selected && !isEditing ? '2px solid #2196F3' : 'none',
+            backgroundColor: element.selected && !isEditing ? 'rgba(240, 240, 240, 0.3)' : 'transparent',
+            border: 'none', // 移除边框，使用CSS中的outline
             padding: isEditing ? '0' : '5px', // 编辑模式下移除内边距
             cursor: isEditing ? 'text' : 'move',
-            outline: 'none',
             resize: 'none',
-            overflow: isEditing ? 'visible' : 'hidden', // 编辑模式下允许内容溢出
-            position: 'relative' // 确保定位正确
+            overflow: isEditing ? 'visible' : 'hidden' // 编辑模式下允许内容溢出
+            // 移除position: relative，使用baseStyle中的position: absolute
           }}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}

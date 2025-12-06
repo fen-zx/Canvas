@@ -216,6 +216,54 @@
     color: #666;
 }
 
+/* 尺寸设置容器 */
+.size-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 尺寸输入组 */
+.size-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* 尺寸标签 */
+.size-label {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* 尺寸输入框容器 */
+.size-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+/* 尺寸输入框 */
+.size-input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    width: 100%;
+}
+
+.size-input:focus {
+    outline: none;
+    border-color: #2196f3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
     .color-picker {

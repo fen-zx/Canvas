@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import type { Pattern, PatternSidebarProps } from '../types';
 import './PatternSidebar.css';
 
-// 简化的图案列表 - 只包含矩形、圆形和三角形
+// 简化的图案列表 - 只包含矩形、圆形和五角星
 const patterns: Pattern[] = [
   { id: 'rect', name: '矩形', type: 'rect', fill: 'transparent', stroke: 'black', strokeWidth: 2, width: 100, height: 100 },
   { id: 'circle', name: '圆形', type: 'circle', fill: 'transparent', stroke: 'black', strokeWidth: 2, width: 100, height: 100 },
-  { id: 'triangle', name: '三角形', type: 'triangle', fill: 'transparent', stroke: 'black', strokeWidth: 2, width: 100, height: 100 },
+  { id: 'star', name: '五角星', type: 'star', fill: 'transparent', stroke: 'black', strokeWidth: 2, width: 100, height: 100 },
 ];
 
 const PatternSidebar: React.FC<PatternSidebarProps> = ({ onSelectPattern }) => {
@@ -35,10 +35,11 @@ const PatternSidebar: React.FC<PatternSidebarProps> = ({ onSelectPattern }) => {
             strokeWidth={pattern.strokeWidth}
           />
         );
-      case 'triangle':
+      case 'star':
+        // 使用SVG多边形创建五角星
         return (
           <polygon
-            points="50,10 90,90 10,90"
+            points="50,10 61,39 92,39 68,58 79,87 50,70 21,87 32,58 8,39 39,39"
             fill={pattern.fill}
             stroke={pattern.stroke}
             strokeWidth={pattern.strokeWidth}

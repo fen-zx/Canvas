@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './ColorPicker.css';
 
 interface ColorPickerProps {
@@ -6,9 +6,13 @@ interface ColorPickerProps {
   currentFill: string;
   currentStroke: string;
   currentStrokeWidth: number;
+  currentWidth: number;
+  currentHeight: number;
   onFillChange: (color: string) => void;
   onStrokeChange: (color: string) => void;
   onStrokeWidthChange: (width: number) => void;
+  onWidthChange: (width: number) => void;
+  onHeightChange: (height: number) => void;
   onClose: () => void;
 }
 
@@ -29,13 +33,67 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
   currentFill,
   currentStroke,
   currentStrokeWidth,
+  currentWidth,
+  currentHeight,
   onFillChange,
   onStrokeChange,
   onStrokeWidthChange,
+  onWidthChange,
+  onHeightChange,
   onClose
 }) => {
   // 当前激活的标签页
-  const [activeTab, setActiveTab] = useState<'fill' | 'stroke' | 'strokeWidth'>('fill');
+  const [activeTab, setActiveTab] = useState<'fill' | 'stroke' | 'strokeWidth' | 'size'>('fill');
+
+  // 拖拽相关状态
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState(position);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // 当position属性变化时更新当前位置
+  useEffect(() => {
+    setCurrentPosition(position);
+  }, [position]);
+
+  // 处理拖拽开始
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // 只有点击头部区域才允许拖拽
+    if ((e.target as HTMLElement).closest('.color-picker-header')) {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: e.clientX - currentPosition.x,
+        y: e.clientY - currentPosition.y
+      };
+      e.preventDefault();
+    }
+  };
+
+  // 处理拖拽移动
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragStartRef.current.x;
+      const newY = e.clientY - dragStartRef.current.y;
+      setCurrentPosition({ x: newX, y: newY });
+    }
+  };
+
+  // 处理拖拽结束
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // 添加拖拽事件监听
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging]);
 
   // 处理颜色选择
   const handleColorClick = (color: string) => {
@@ -83,13 +141,16 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
 
   return (
     <div
-      className="color-picker"
+      ref={pickerRef}
+      className={`color-picker ${isDragging ? 'dragging' : ''}`}
       style={{
         position: 'absolute',
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        zIndex: 1000
+        left: `${currentPosition.x}px`,
+        top: `${currentPosition.y}px`,
+        zIndex: 1000,
+        cursor: isDragging ? 'grabbing' : 'default'
       }}
+      onMouseDown={handleMouseDown}
     >
       {/* 标题栏与关闭按钮 */}
       <div className="color-picker-header">
@@ -123,6 +184,12 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
         >
           边框宽度
         </button>
+        <button
+          className={`color-picker-tab ${activeTab === 'size' ? 'active' : ''}`}
+          onClick={() => setActiveTab('size')}
+        >
+          尺寸设置
+        </button>
       </div>
 
       {/* 内容区域 */}
@@ -135,7 +202,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
                 <div
                   key={color}
                   className={`color-option ${color === 'transparent' ? 'transparent-color' : ''} ${(activeTab === 'fill' && color === currentFill) ||
-                      (activeTab === 'stroke' && color === currentStroke) ? 'selected' : ''
+                    (activeTab === 'stroke' && color === currentStroke) ? 'selected' : ''
                     }`}
                   style={{
                     backgroundColor: color === 'transparent' ? 'white' : color,
@@ -198,6 +265,38 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
                 placeholder="输入宽度"
               />
               <span className="stroke-width-unit">px</span>
+            </div>
+          </div>
+        )}
+
+        {/* 尺寸设置区域 */}
+        {activeTab === 'size' && (
+          <div className="size-settings">
+            <div className="size-input-group">
+              <label className="size-label">宽度 (px)</label>
+              <div className="size-input-wrapper">
+                <input
+                  type="number"
+                  min="1"
+                  value={Math.round(currentWidth)}
+                  onChange={(e) => onWidthChange(Math.max(Number(e.target.min), Number(e.target.value)))}
+                  className="size-input"
+                  placeholder="宽度"
+                />
+              </div>
+            </div>
+            <div className="size-input-group">
+              <label className="size-label">高度 (px)</label>
+              <div className="size-input-wrapper">
+                <input
+                  type="number"
+                  min="1"
+                  value={Math.round(currentHeight)}
+                  onChange={(e) => onHeightChange(Math.max(Number(e.target.min), Number(e.target.value)))}
+                  className="size-input"
+                  placeholder="高度"
+                />
+              </div>
             </div>
           </div>
         )}
