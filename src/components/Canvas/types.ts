@@ -1,7 +1,7 @@
 // 基础元素属性
 interface BaseElement {
   id: string;
-  type: 'rect' | 'circle' | 'star' | 'image' | 'text';
+  type: 'rect' | 'circle' | 'star' | 'rounded-rect' | 'triangle' | 'image' | 'text';
   x: number;
   y: number;
   width: number;
@@ -16,10 +16,11 @@ interface BaseElement {
 
 // 图形元素属性
 interface ShapeElement extends BaseElement {
-  type: 'rect' | 'circle' | 'star';
+  type: 'rect' | 'circle' | 'star' | 'rounded-rect' | 'triangle';
   fill: string;
   stroke: string;
   strokeWidth: number;
+  borderRadius?: number; // 用于圆角矩形
 }
 
 // 图片元素属性
@@ -49,7 +50,7 @@ export type CanvasElement = ShapeElement | ImageElement | TextElement;
 export interface CanvasState {
   elements: CanvasElement[];
   selectedElementIds: string[];
-  currentTool: 'select' | 'rect' | 'circle' | 'triangle' | 'image' | 'text' | 'shape';
+  currentTool: 'select' | 'rect' | 'circle' | 'rounded-rect' | 'triangle' | 'image' | 'text' | 'shape';
   position: { x: number; y: number };
   scale: number;
 }
@@ -66,12 +67,13 @@ export interface ToolButtonProps {
 export interface Pattern {
   id: string;
   name: string;
-  type: 'rect' | 'circle' | 'star';
+  type: 'rect' | 'circle' | 'star' | 'rounded-rect' | 'triangle';
   fill: string;
   stroke: string;
   strokeWidth: number;
   width: number;
   height: number;
+  borderRadius?: number; // 用于圆角矩形
 }
 
 // 侧边栏属性接口

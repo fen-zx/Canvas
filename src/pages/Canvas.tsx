@@ -25,18 +25,22 @@ const Canvas: React.FC<CanvasProps> = () => {
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const [isDraggingElement, setIsDraggingElement] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [lastDragPos, setLastDragPos] = useState({ x: 0, y: 0 }); // 新增：保存上一次拖拽位置
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
   const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 });
   const [isTextEditing, setIsTextEditing] = useState(false); // 跟踪文本编辑状态
   const [isMobile, setIsMobile] = useState(false);
-  const [showMobileToolbar, setShowMobileToolbar] = useState(false); // 控制移动端工具栏显示
   const [activeTouchId, setActiveTouchId] = useState<number | null>(null); // 当前活动触摸ID
   const [isPinching, setIsPinching] = useState(false); // 是否正在捏合缩放
   const [lastPinchDistance, setLastPinchDistance] = useState(0); // 上次捏合距离
   const [hasDragged, setHasDragged] = useState(false); // 用于跟踪是否发生了拖拽操作
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null); // 保存选中的图案
+  // 框选状态
+  const [isMarqueeSelecting, setIsMarqueeSelecting] = useState(false);
+  const [marqueeStartPos, setMarqueeStartPos] = useState({ x: 0, y: 0 });
+  const [marqueeEndPos, setMarqueeEndPos] = useState({ x: 0, y: 0 });
   const [justDeselected, setJustDeselected] = useState(false); // 跟踪是否刚从选中状态切换
   const [showColorPicker, setShowColorPicker] = useState(false); // 控制颜色选择器显示
   const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 }); // 颜色选择器位置
@@ -45,6 +49,9 @@ const Canvas: React.FC<CanvasProps> = () => {
   const [showFilterPicker, setShowFilterPicker] = useState(false); // 控制滤镜选择器显示
   const [filterPickerPosition, setFilterPickerPosition] = useState({ x: 0, y: 0 }); // 滤镜选择器位置
   const [filterPickerTargetElement, setFilterPickerTargetElement] = useState<string | null>(null); // 滤镜选择器目标元素
+
+  // 右键拖动状态
+  const [rightMouseButtonDown, setRightMouseButtonDown] = useState(false);
 
   // 使用自定义Hook管理画布状态
   const canvasState = useCanvasState({
@@ -68,6 +75,7 @@ const Canvas: React.FC<CanvasProps> = () => {
     addElement,
     selectElement,
     clearSelection,
+    clearCanvas,
     setCurrentTool,
     updateCanvasPosition,
     updateCanvasScale,
@@ -75,7 +83,9 @@ const Canvas: React.FC<CanvasProps> = () => {
     updateElement,
     deleteSelectedElements,
     rotateSelectedElements,
-    resizeSelectedElements
+    resizeSelectedElements,
+    copyElements,
+    pasteElements
   } = canvasState;
 
   // 导出JSON功能
@@ -356,36 +366,58 @@ const Canvas: React.FC<CanvasProps> = () => {
     // 重置拖拽状态
     setHasDragged(false);
 
-    // 只有当没有选中元素时才允许拖拽画布
-    if (!e.target || !(e.target as HTMLElement).closest('.canvas-element')) {
+    // 检查是否是右键点击
+    if (e.button === 2) {
+      e.preventDefault(); // 阻止默认右键菜单
+      setRightMouseButtonDown(true);
       setIsDraggingCanvas(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
       document.body.style.cursor = 'grabbing';
-    }
-  };
+    } else {
+      // 左键点击逻辑
+      // 检查是否点击了画布空白区域
+      const target = e.target as HTMLElement;
+      const canvasElement = target.closest('.canvas-element');
 
-  // 处理触摸开始事件
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touches = e.touches;
+      // 如果点击了画布空白区域（不是元素），开始框选
+      if (!canvasElement) {
+        // 获取canvas-container的位置
+        const containerRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 
-    // 单指触摸
-    if (touches.length === 1) {
-      const touch = touches[0];
-      setActiveTouchId(touch.identifier);
+        // 计算鼠标相对于容器的坐标
+        const relativeX = e.clientX - containerRect.left;
+        const relativeY = e.clientY - containerRect.top;
 
-      // 检查是否点击了画布本身
-      if (e.target === canvasRef.current) {
-        setIsDraggingCanvas(true);
-        setLastMousePos({ x: touch.clientX, y: touch.clientY });
+        setIsMarqueeSelecting(true);
+        setMarqueeStartPos({ x: relativeX, y: relativeY });
+        setMarqueeEndPos({ x: relativeX, y: relativeY });
+        document.body.style.cursor = 'crosshair';
       }
     }
-    // 双指触摸开始缩放
-    else if (touches.length === 2 && !isPinching) {
-      e.preventDefault();
-      setIsPinching(true);
-      setLastPinchDistance(getDistance(touches));
-    }
   };
+
+  // // 处理触摸开始事件
+  // const handleTouchStart = (e: React.TouchEvent) => {
+  //   const touches = e.touches;
+
+  //   // 单指触摸
+  //   if (touches.length === 1) {
+  //     const touch = touches[0];
+  //     setActiveTouchId(touch.identifier);
+
+  //     // 检查是否点击了画布本身
+  //     if (e.target === canvasRef.current) {
+  //       setIsDraggingCanvas(true);
+  //       setLastMousePos({ x: touch.clientX, y: touch.clientY });
+  //     }
+  //   }
+  //   // 双指触摸开始缩放
+  //   else if (touches.length === 2 && !isPinching) {
+  //     e.preventDefault();
+  //     setIsPinching(true);
+  //     setLastPinchDistance(getDistance(touches));
+  //   }
+  // };
 
   // 处理触摸移动事件
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -445,12 +477,11 @@ const Canvas: React.FC<CanvasProps> = () => {
       else if (isDraggingElement && selectedElementIds.length > 0) {
         e.preventDefault();
 
-        const dx = touch.clientX - dragStartPos.x;
-        const dy = touch.clientY - dragStartPos.y;
+        const dx = touch.clientX - lastDragPos.x;
+        const dy = touch.clientY - lastDragPos.y;
 
-        // 先更新拖拽起始位置，再移动元素，避免不同步问题
-        setDragStartPos({ x: touch.clientX, y: touch.clientY });
         moveSelectedElements(dx / scale, dy / scale);
+        setLastDragPos({ x: touch.clientX, y: touch.clientY });
       }
       // 调整大小
       else if (isResizing && resizeHandle) {
@@ -464,18 +495,6 @@ const Canvas: React.FC<CanvasProps> = () => {
         let deltaHeight = 0;
 
         switch (resizeHandle) {
-          case 'n':
-            deltaHeight = -dy / scale;
-            break;
-          case 's':
-            deltaHeight = dy / scale;
-            break;
-          case 'w':
-            deltaWidth = -dx / scale;
-            break;
-          case 'e':
-            deltaWidth = dx / scale;
-            break;
           case 'nw':
             deltaWidth = -dx / scale;
             deltaHeight = -dy / scale;
@@ -531,6 +550,8 @@ const Canvas: React.FC<CanvasProps> = () => {
     setIsResizing(false);
     setIsPinching(false);
     setActiveTouchId(null);
+    setDragStartPos({ x: 0, y: 0 });
+    setLastDragPos({ x: 0, y: 0 });
 
     // 重置光标样式
     document.body.style.cursor = 'default';
@@ -548,6 +569,8 @@ const Canvas: React.FC<CanvasProps> = () => {
     setIsResizing(false);
     setIsPinching(false);
     setActiveTouchId(null);
+    setDragStartPos({ x: 0, y: 0 });
+    setLastDragPos({ x: 0, y: 0 });
 
     // 重置光标样式
     document.body.style.cursor = 'default';
@@ -588,23 +611,22 @@ const Canvas: React.FC<CanvasProps> = () => {
 
       if (canvasRect && containerRect) {
         // 计算元素在屏幕上的位置
-        const elementScreenX = containerRect.left + position.x + (element.x + element.width / 2) * scale;
-        const elementScreenY = containerRect.top + position.y + (element.y + element.height) * scale + 10; // 显示在元素下方
+        const elementScreenX = containerRect.left + position.x + (element.x + element.width) * scale + 10; // 显示在元素右侧
+        const elementScreenY = containerRect.top + position.y + (element.y + element.height / 2) * scale; // 垂直居中
 
-        // 修复：移除'triangle'类型检查，因为它在BaseElement接口中未定义
-        if (['rect', 'circle', 'star'].includes(element.type)) {
+        if (['rect', 'circle', 'star', 'rounded-rect', 'triangle'].includes(element.type)) {
           // 显示颜色选择器
           setColorPickerPosition({
-            x: elementScreenX - 140, // 居中显示
-            y: elementScreenY
+            x: elementScreenX,
+            y: elementScreenY - 140 // 垂直居中
           });
           setColorPickerTargetElement(elementId);
           setShowColorPicker(true);
         } else if (element.type === 'image') {
           // 显示滤镜选择器
           setFilterPickerPosition({
-            x: elementScreenX - 140, // 居中显示
-            y: elementScreenY
+            x: elementScreenX,
+            y: elementScreenY - 140 // 垂直居中
           });
           setFilterPickerTargetElement(elementId);
           setShowFilterPicker(true);
@@ -699,12 +721,34 @@ const Canvas: React.FC<CanvasProps> = () => {
     // 准备拖拽选中的元素
     setIsDraggingElement(true);
     setDragStartPos({ x: event.clientX, y: event.clientY });
+    setLastDragPos({ x: event.clientX, y: event.clientY }); // 初始化上一次拖拽位置
 
     // 为被拖拽的元素添加拖拽状态
     selectedElementIds.forEach(id => {
       updateElement(id, { isDragging: true });
     });
-  };
+  }
+
+  // 处理元素触摸拖拽开始
+  const handleElementTouchStart = (elementId: string, event: React.TouchEvent) => {
+    event.stopPropagation();
+
+    // 如果元素未被选中，则先选中它
+    if (!selectedElementIds.includes(elementId)) {
+      selectElement(elementId, false); // 触摸不支持多选
+    }
+
+    // 准备拖拽选中的元素
+    const touch = event.touches[0];
+    setIsDraggingElement(true);
+    setDragStartPos({ x: touch.clientX, y: touch.clientY });
+    setLastDragPos({ x: touch.clientX, y: touch.clientY }); // 初始化上一次拖拽位置
+
+    // 为被拖拽的元素添加拖拽状态
+    selectedElementIds.forEach(id => {
+      updateElement(id, { isDragging: true });
+    });
+  }
 
   // 处理元素双击
   const handleElementDoubleClick = (elementId: string, e: React.MouseEvent) => {
@@ -726,8 +770,9 @@ const Canvas: React.FC<CanvasProps> = () => {
   // 处理全局鼠标移动和释放事件
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (isDraggingCanvas) {
-        // 拖拽画布
+      if (isDraggingCanvas && rightMouseButtonDown) {
+        // 只有右键按下时才拖动画布
+        e.preventDefault(); // 阻止默认行为，如文本选择
         const deltaX = e.clientX - lastMousePos.x;
         const deltaY = e.clientY - lastMousePos.y;
 
@@ -745,8 +790,8 @@ const Canvas: React.FC<CanvasProps> = () => {
         document.body.style.cursor = 'grabbing';
       } else if (isDraggingElement && selectedElementIds.length > 0) {
         // 拖拽选中的元素 - 需要除以scale，确保在不同缩放比例下鼠标移动距离与元素移动距离一致
-        const deltaX = (e.clientX - dragStartPos.x) / scale;
-        const deltaY = (e.clientY - dragStartPos.y) / scale;
+        const deltaX = (e.clientX - lastDragPos.x) / scale;
+        const deltaY = (e.clientY - lastDragPos.y) / scale;
 
         // 当移动距离超过一定阈值时，标记为拖拽操作
         if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
@@ -755,9 +800,8 @@ const Canvas: React.FC<CanvasProps> = () => {
 
         // 优化：只在有实际移动时才更新
         if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
-          // 先更新拖拽起始位置，再移动元素，避免控制点先移动的现象
-          setDragStartPos({ x: e.clientX, y: e.clientY });
           moveSelectedElements(deltaX, deltaY);
+          setLastDragPos({ x: e.clientX, y: e.clientY });
         }
         document.body.style.cursor = 'grabbing';
       } else if (isResizing && resizeHandle && selectedElementIds.length > 0) {
@@ -770,18 +814,6 @@ const Canvas: React.FC<CanvasProps> = () => {
 
         // 根据拖动的手柄计算宽高变化
         switch (resizeHandle) {
-          case 'n':
-            deltaHeight = -deltaY;
-            break;
-          case 's':
-            deltaHeight = deltaY;
-            break;
-          case 'w':
-            deltaWidth = -deltaX;
-            break;
-          case 'e':
-            deltaWidth = deltaX;
-            break;
           case 'nw':
             deltaWidth = -deltaX;
             deltaHeight = -deltaY;
@@ -823,14 +855,86 @@ const Canvas: React.FC<CanvasProps> = () => {
 
         resizeSelectedElements(deltaWidth, deltaHeight);
         document.body.style.cursor = getCursorForResizeHandle(resizeHandle);
+      } else if (isMarqueeSelecting) {
+        // 框选进行中，更新框选结束位置
+        e.preventDefault();
+
+        // 获取canvas-container的位置
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        if (containerRect) {
+          // 计算鼠标相对于容器的坐标
+          const relativeX = e.clientX - containerRect.left;
+          const relativeY = e.clientY - containerRect.top;
+          setMarqueeEndPos({ x: relativeX, y: relativeY });
+        }
       }
     };
 
     const handleGlobalMouseUp = () => {
       setIsDraggingCanvas(false);
+      setRightMouseButtonDown(false);
       setIsDraggingElement(false);
       setIsResizing(false);
       setResizeHandle(null);
+      setDragStartPos({ x: 0, y: 0 }); // 重置拖拽起始位置
+      setLastDragPos({ x: 0, y: 0 }); // 重置上一次拖拽位置
+
+      // 处理框选结束
+      if (isMarqueeSelecting) {
+        // 计算框选区域的边界和尺寸
+        const startX = Math.min(marqueeStartPos.x, marqueeEndPos.x);
+        const startY = Math.min(marqueeStartPos.y, marqueeEndPos.y);
+        const endX = Math.max(marqueeStartPos.x, marqueeEndPos.x);
+        const endY = Math.max(marqueeStartPos.y, marqueeEndPos.y);
+
+        // 计算框选区域的宽度和高度
+        const width = endX - startX;
+        const height = endY - startY;
+
+        // 只有当框选区域的宽度和高度都大于5像素时，才认为是真正的拖拽
+        // 这样纯点击时不会阻止生成元素
+        if (width > 5 || height > 5) {
+          setHasDragged(true);
+        }
+
+        // 计算框选区域的实际尺寸（考虑画布的缩放和位置）
+        const selectionRect = {
+          x: (startX - position.x) / scale,
+          y: (startY - position.y) / scale,
+          width: (endX - startX) / scale,
+          height: (endY - startY) / scale
+        };
+
+        // 找出所有与框选区域重叠的元素
+        const selectedElements = elements.filter(element => {
+          // 检查元素是否与框选区域重叠
+          return (
+            element.x < selectionRect.x + selectionRect.width &&
+            element.x + element.width > selectionRect.x &&
+            element.y < selectionRect.y + selectionRect.height &&
+            element.y + element.height > selectionRect.y
+          );
+        });
+
+        // 选中这些元素
+        if (selectedElements.length > 0) {
+          const selectedIds = selectedElements.map(el => el.id);
+
+          // 先清除当前选择
+          clearSelection();
+
+          // 然后选择所有框选到的元素
+          selectedIds.forEach(id => {
+            selectElement(id, true); // 使用multiSelect=true保持之前的选择
+            updateElement(id, { selected: true });
+          });
+        } else {
+          // 如果没有选中任何元素，取消所有选择
+          clearSelection();
+        }
+      }
+
+      setIsMarqueeSelecting(false);
       document.body.style.cursor = 'default';
 
       // 移除所有元素的拖拽状态
@@ -842,16 +946,27 @@ const Canvas: React.FC<CanvasProps> = () => {
       // hasDragged会在handleCanvasClick中检查后重置
     };
 
+    // 阻止默认右键菜单
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.canvas-container') || target.closest('.infinite-canvas')) {
+        e.preventDefault();
+      }
+    };
+
     document.addEventListener('mousemove', handleGlobalMouseMove);
     document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [isDraggingCanvas, isDraggingElement, lastMousePos, dragStartPos,
+  }, [isDraggingCanvas, rightMouseButtonDown, isDraggingElement, lastMousePos, dragStartPos,
     position, scale, selectedElementIds, updateCanvasPosition,
-    moveSelectedElements, updateElement, elements]);
+    moveSelectedElements, updateElement, elements, isMarqueeSelecting,
+    marqueeStartPos, marqueeEndPos, clearSelection, selectElement]);
 
   // 处理鼠标滚轮事件，实现缩放
   const handleWheel = (e: React.WheelEvent) => {
@@ -897,14 +1012,6 @@ const Canvas: React.FC<CanvasProps> = () => {
   // 根据调整手柄的方向获取光标的样式
   const getCursorForResizeHandle = (handle: string): string => {
     switch (handle) {
-      case 'n':
-        return 'ns-resize';
-      case 's':
-        return 'ns-resize';
-      case 'w':
-        return 'ew-resize';
-      case 'e':
-        return 'ew-resize';
       case 'nw':
         return 'nwse-resize';
       case 'ne':
@@ -923,15 +1030,6 @@ const Canvas: React.FC<CanvasProps> = () => {
   // 根据调整手柄的方向获取其位置
   const getPositionForResizeHandle = (handle: string): React.CSSProperties => {
     switch (handle) {
-      // 边上的点 - 中心点移到边上
-      case 'n':
-        return { top: 0, left: '50%' };
-      case 's':
-        return { bottom: 0, left: '50%' };
-      case 'w':
-        return { left: 0, top: '50%' };
-      case 'e':
-        return { right: 0, top: '50%' };
       // 四角的点 - 定位在角落
       case 'nw':
         return { top: 0, left: 0 };
@@ -987,6 +1085,18 @@ const Canvas: React.FC<CanvasProps> = () => {
       // 检查是否有输入框获得焦点
       const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
 
+      // 复制选中的元素
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedElementIds.length > 0 && !isTextEditing && !isInputFocused) {
+        e.preventDefault();
+        copyElements();
+      }
+
+      // 粘贴元素
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isTextEditing && !isInputFocused) {
+        e.preventDefault();
+        pasteElements();
+      }
+
       // 删除选中的元素 - 只有在不在文本编辑模式且没有输入框获得焦点时才执行
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementIds.length > 0 && !isTextEditing && !isInputFocused) {
         e.preventDefault();
@@ -1031,7 +1141,7 @@ const Canvas: React.FC<CanvasProps> = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElementIds, updateCanvasPosition, updateCanvasScale, deleteSelectedElements, rotateSelectedElements, resizeSelectedElements]);
+  }, [selectedElementIds, updateCanvasPosition, updateCanvasScale, deleteSelectedElements, rotateSelectedElements, resizeSelectedElements, copyElements, pasteElements]);
 
   // 全局鼠标事件监听
   useEffect(() => {
@@ -1051,6 +1161,7 @@ const Canvas: React.FC<CanvasProps> = () => {
         onToolChange={setCurrentTool}
         onExport={handleExport}
         onImport={handleImport}
+        onClearCanvas={clearCanvas}
         isLineMode={isLineMode}
         onLineModeToggle={() => {
           const newValue = !isLineMode;
@@ -1121,6 +1232,7 @@ const Canvas: React.FC<CanvasProps> = () => {
                 onDoubleClick={handleElementDoubleClick}
                 onTextUpdate={handleTextElementUpdate}
                 onDragStart={handleElementDragStart}
+                onTouchStart={handleElementTouchStart}
                 onStartEditing={() => setIsTextEditing(true)}
                 onStopEditing={() => setIsTextEditing(false)}
               />
@@ -1142,7 +1254,7 @@ const Canvas: React.FC<CanvasProps> = () => {
                   }}
                 >
                   {/* 八个调整大小手柄 - 移动端更大一些 */}
-                  {['n', 's', 'w', 'e', 'nw', 'ne', 'sw', 'se'].map(handle => (
+                  {['nw', 'ne', 'sw', 'se'].map(handle => (
                     <div
                       key={handle}
                       className={`resize-handle resize-handle-${handle}`}
@@ -1158,14 +1270,10 @@ const Canvas: React.FC<CanvasProps> = () => {
                         touchAction: 'none',
                         ...getPositionForResizeHandle(handle),
                         // 根据handle类型调整transform，确保手柄中心点在正确位置
-                        transform: handle.includes('n') && handle.includes('w') ? 'translate(-50%, -50%)' :
-                          handle.includes('n') && handle.includes('e') ? 'translate(50%, -50%)' :
-                            handle.includes('s') && handle.includes('w') ? 'translate(-50%, 50%)' :
-                              handle.includes('s') && handle.includes('e') ? 'translate(50%, 50%)' :
-                                handle === 'n' ? 'translate(-50%, -50%)' :
-                                  handle === 's' ? 'translate(-50%, 50%)' :
-                                    handle === 'w' ? 'translate(-50%, -50%)' :
-                                      handle === 'e' ? 'translate(50%, -50%)' : 'translate(-50%, -50%)'
+                        transform: handle.includes('nw') ? 'translate(-50%, -50%)' :
+                          handle.includes('ne') ? 'translate(50%, -50%)' :
+                            handle.includes('sw') ? 'translate(-50%, 50%)' :
+                              handle.includes('se') ? 'translate(50%, 50%)' : 'translate(-50%, -50%)'
                       }}
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, handle)}
                       onMouseUp={(e) => {
@@ -1219,6 +1327,23 @@ const Canvas: React.FC<CanvasProps> = () => {
             </React.Fragment>
           ))}
         </div>
+
+        {/* 渲染虚线框选矩形 - 放在infinite-canvas外部，不受transform影响 */}
+        {isMarqueeSelecting && (
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.min(marqueeStartPos.x, marqueeEndPos.x),
+              top: Math.min(marqueeStartPos.y, marqueeEndPos.y),
+              width: Math.abs(marqueeEndPos.x - marqueeStartPos.x),
+              height: Math.abs(marqueeEndPos.y - marqueeStartPos.y),
+              border: '2px dashed blue',
+              backgroundColor: 'rgba(0, 0, 255, 0.1)',
+              pointerEvents: 'none',
+              zIndex: 1000
+            }}
+          />
+        )}
 
         {/* 显示选中元素的坐标 */}
         {selectedElementIds.length === 1 && (

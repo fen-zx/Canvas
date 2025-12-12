@@ -38,7 +38,8 @@
   background-position: 0 0;
   /* 确保覆盖默认样式 */
   background-color: transparent;
-  background-repeat: repeat;
+  /* 浅黄色背景用于测试 */
+  border: 2px solid red;
 }
 
 .canvas-element {

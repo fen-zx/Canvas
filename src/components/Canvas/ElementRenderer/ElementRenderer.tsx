@@ -1,3 +1,4 @@
+// 图案按钮组件
 import React, { useState } from 'react';
 import type { CanvasElement, TextElement } from '../types';
 import RichTextEditor from '../RichTextEditor/RichTextEditor';
@@ -8,6 +9,7 @@ interface ElementRendererProps {
   onDoubleClick?: (elementId: string, event: React.MouseEvent) => void;
   onTextUpdate?: (elementId: string, updates: Partial<TextElement>) => void;
   onDragStart?: (elementId: string, event: React.MouseEvent) => void;
+  onTouchStart?: (elementId: string, event: React.TouchEvent) => void;
   onStartEditing?: () => void;
   onStopEditing?: () => void;
 }
@@ -18,6 +20,7 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
   onDoubleClick,
   onTextUpdate,
   onDragStart,
+  onTouchStart,
   onStartEditing,
   onStopEditing
 }) => {
@@ -32,6 +35,14 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
     e.stopPropagation();
     if (onDragStart) {
       onDragStart(element.id, e);
+    }
+  };
+
+  // 处理元素触摸开始事件（用于拖拽开始）
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (onTouchStart) {
+      onTouchStart(element.id, e);
     }
   };
 
@@ -93,6 +104,7 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
         />
       );
 
@@ -109,7 +121,51 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
         />
+      );
+
+    case 'rounded-rect':
+      return (
+        <div
+          className={`canvas-element canvas-shape ${element.selected ? 'selected' : ''}`}
+          style={{
+            ...baseStyle,
+            backgroundColor: element.fill,
+            border: `${element.strokeWidth}px solid ${element.stroke}`,
+            borderRadius: `${element.borderRadius || 10}px`
+          }}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+        />
+      );
+
+    case 'triangle':
+      // 使用SVG多边形创建三角形，支持动态边框宽度和颜色
+      return (
+        <div
+          className={`canvas-element canvas-shape ${element.selected ? 'selected' : ''}`}
+          style={{
+            ...baseStyle,
+            width: element.width,
+            height: element.height
+          }}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+        >
+          <svg width="100%" height="100%" viewBox="0 0 100 100">
+            <polygon
+              points="50,10 10,90 90,90"
+              fill={element.fill === undefined ? 'transparent' : element.fill}
+              stroke={element.stroke || 'black'}
+              strokeWidth={element.strokeWidth || 2}
+            />
+          </svg>
+        </div>
       );
 
     case 'star':
@@ -125,6 +181,7 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
         >
           <svg width="100%" height="100%" viewBox="0 0 100 100">
             <polygon
@@ -151,6 +208,7 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
           draggable={false}
         />
       );
@@ -172,6 +230,7 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onMouseDown={!isEditing ? handleMouseDown : undefined}
+          onTouchStart={!isEditing ? handleTouchStart : undefined}
         >
           <RichTextEditor
             element={element}

@@ -1,5 +1,39 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { CanvasElement, CanvasState } from './types';
+
+// localStorage存储键名
+const STORAGE_KEY = 'canvas-state';
+
+// 从localStorage加载画布状态
+const loadCanvasState = (): CanvasState | null => {
+  try {
+    const savedState = localStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      return JSON.parse(savedState);
+    }
+  } catch (error) {
+    console.error('Failed to load canvas state from localStorage:', error);
+  }
+  return null;
+};
+
+// 保存画布状态到localStorage
+const saveCanvasState = (state: CanvasState): void => {
+  try {
+    // 只保存必要的数据，移除临时状态
+    const stateToSave = {
+      ...state,
+      elements: state.elements.map(element => {
+        // 移除临时状态属性
+        const { isDragging, isHighlighted, ...elementWithoutTempState } = element;
+        return elementWithoutTempState;
+      })
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+  } catch (error) {
+    console.error('Failed to save canvas state to localStorage:', error);
+  }
+};
 
 // 生成唯一ID的函数
 const generateId = (): string => {
@@ -17,7 +51,19 @@ const defaultCanvasState: CanvasState = {
 
 // 自定义Hook：画布状态管理
 export const useCanvasState = (initialState = defaultCanvasState) => {
-  const [state, setState] = useState<CanvasState>(initialState);
+  // 优先从localStorage加载状态，如果没有则使用初始状态
+  const [state, setState] = useState<CanvasState>(() => {
+    const savedState = loadCanvasState();
+    return savedState || initialState;
+  });
+
+  // 存储复制的元素
+  const [copiedElements, setCopiedElements] = useState<CanvasElement[]>([]);
+
+  // 当状态变化时保存到localStorage
+  useEffect(() => {
+    saveCanvasState(state);
+  }, [state]);
 
   // 添加一个新的画布元素
   const addElement = useCallback((element: Omit<CanvasElement, 'id' | 'selected' | 'zIndex'>) => {
@@ -28,7 +74,7 @@ export const useCanvasState = (initialState = defaultCanvasState) => {
         selected: false,
         zIndex: prevState.elements.length
       } as CanvasElement;
-      
+
       return {
         ...prevState,
         elements: [...prevState.elements, newElement],
@@ -53,11 +99,11 @@ export const useCanvasState = (initialState = defaultCanvasState) => {
       ...prevState,
       elements: prevState.elements.map(element => ({
         ...element,
-        selected: multiSelect ? 
+        selected: multiSelect ?
           prevState.selectedElementIds.includes(element.id) || element.id === elementId :
           element.id === elementId
       })),
-      selectedElementIds: multiSelect ? 
+      selectedElementIds: multiSelect ?
         prevState.selectedElementIds.includes(elementId) ?
           prevState.selectedElementIds.filter(id => id !== elementId) :
           [...prevState.selectedElementIds, elementId]
@@ -154,7 +200,7 @@ export const useCanvasState = (initialState = defaultCanvasState) => {
       )
     }));
   }, []);
-  
+
   // 旋转元素
   const rotateElement = useCallback((elementId: string, deltaRotation: number) => {
     setState(prevState => ({
@@ -166,52 +212,102 @@ export const useCanvasState = (initialState = defaultCanvasState) => {
       )
     }));
   }, []);
-  
+
   // 调整元素大小
   const resizeElement = useCallback((elementId: string, deltaWidth: number, deltaHeight: number) => {
     setState(prevState => ({
       ...prevState,
       elements: prevState.elements.map(element =>
         element.id === elementId
-          ? { 
-              ...element, 
-              width: Math.max(10, element.width + deltaWidth), // 最小宽度限制
-              height: Math.max(10, element.height + deltaHeight) // 最小高度限制
-            } as CanvasElement
+          ? {
+            ...element,
+            width: Math.max(10, element.width + deltaWidth), // 最小宽度限制
+            height: Math.max(10, element.height + deltaHeight) // 最小高度限制
+          } as CanvasElement
           : element
       )
     }));
   }, []);
-  
+
   // 旋转选中的元素
   const rotateSelectedElements = useCallback((deltaRotation: number) => {
     state.selectedElementIds.forEach(id => rotateElement(id, deltaRotation));
   }, [state.selectedElementIds, rotateElement]);
-  
+
   // 调整选中元素的大小
   const resizeSelectedElements = useCallback((deltaWidth: number, deltaHeight: number) => {
     state.selectedElementIds.forEach(id => resizeElement(id, deltaWidth, deltaHeight));
   }, [state.selectedElementIds, resizeElement]);
 
+  // 复制选中的元素
+  const copyElements = useCallback(() => {
+    const selected = getSelectedElements();
+    setCopiedElements(selected);
+  }, [getSelectedElements]);
+
+  // 粘贴元素
+  const pasteElements = useCallback(() => {
+    if (copiedElements.length === 0) return;
+
+    const pasteOffset = 20; // 粘贴时的偏移量，使新元素与原元素错开
+
+    setState(prevState => {
+      const newElements: CanvasElement[] = [];
+      const newSelectedIds: string[] = [];
+
+      copiedElements.forEach(element => {
+        // 创建新元素，生成新ID并调整位置
+        const newElement: CanvasElement = {
+          ...element,
+          id: generateId(),
+          x: element.x + pasteOffset,
+          y: element.y + pasteOffset,
+          zIndex: prevState.elements.length + newElements.length
+        };
+
+        newElements.push(newElement);
+        newSelectedIds.push(newElement.id);
+      });
+
+      return {
+        ...prevState,
+        elements: [...prevState.elements, ...newElements],
+        selectedElementIds: newSelectedIds
+      };
+    });
+  }, [copiedElements]);
+
+  // 清空画布
+  const clearCanvas = useCallback(() => {
+    setState(prevState => ({
+      ...prevState,
+      elements: [],
+      selectedElementIds: []
+    }));
+  }, []);
+
   return {
-      ...state,
-      addElement,
-      deleteSelectedElements,
-      selectElement,
-      clearSelection,
-      updateElement,
-      updateSelectedElements,
-      setCurrentTool,
-      updateCanvasPosition,
-      updateCanvasScale,
-      getSelectedElements,
-      moveElement,
-      moveSelectedElements,
-      rotateElement,
-      resizeElement,
-      rotateSelectedElements,
-      resizeSelectedElements
-    };
+    ...state,
+    addElement,
+    deleteSelectedElements,
+    selectElement,
+    clearSelection,
+    clearCanvas,
+    updateElement,
+    updateSelectedElements,
+    setCurrentTool,
+    updateCanvasPosition,
+    updateCanvasScale,
+    getSelectedElements,
+    moveElement,
+    moveSelectedElements,
+    rotateElement,
+    resizeElement,
+    rotateSelectedElements,
+    resizeSelectedElements,
+    copyElements,
+    pasteElements
+  };
 };
 
 export default useCanvasState;

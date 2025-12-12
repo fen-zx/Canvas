@@ -1,3 +1,4 @@
+// 样式选择组件
 import React, { useState, useRef, useEffect } from 'react';
 import './ColorPicker.css';
 

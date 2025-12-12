@@ -14,10 +14,11 @@ const ToolButton: React.FC<ToolButtonProps> = ({ icon, label, isActive, onClick 
 );
 
 interface ToolbarProps {
-  currentTool: 'select' | 'rect' | 'circle' | 'triangle' | 'image' | 'text' | 'shape';
-  onToolChange: (tool: 'select' | 'rect' | 'circle' | 'triangle' | 'image' | 'text' | 'shape') => void;
+  currentTool: 'select' | 'rect' | 'circle' | 'rounded-rect' | 'triangle' | 'image' | 'text' | 'shape';
+  onToolChange: (tool: 'select' | 'rect' | 'circle' | 'rounded-rect' | 'triangle' | 'image' | 'text' | 'shape') => void;
   onExport: () => void;
   onImport: () => void;
+  onClearCanvas: () => void;
   isLineMode: boolean;
   onLineModeToggle: () => void;
 }
@@ -28,7 +29,7 @@ interface Tool {
   label: string;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ currentTool, onToolChange, onExport, onImport, isLineMode, onLineModeToggle }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ currentTool, onToolChange, onExport, onImport, onClearCanvas, isLineMode, onLineModeToggle }) => {
   console.log('Toolbar props:', { isLineMode, onLineModeToggle });
   const tools: Tool[] = [
     { id: 'select', icon: '☑️', label: '选择' },
@@ -51,12 +52,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentTool, onToolChange, onExport, 
 
       <button
         className="tool-button"
-        onClick={() => window.location.reload()}
+        onClick={onClearCanvas}
         title="清空画布"
       >
         🗑️
         <span className="tool-label">清空</span>
       </button>
+
       <button
         className="tool-button"
         onClick={onExport}
@@ -65,6 +67,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentTool, onToolChange, onExport, 
         💾
         <span className="tool-label">导出</span>
       </button>
+
       <button
         className="tool-button"
         onClick={onImport}
@@ -72,17 +75,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentTool, onToolChange, onExport, 
       >
         📂
         <span className="tool-label">导入</span>
-      </button>
-      <button
-        className={`tool-button ${isLineMode ? 'active' : ''}`}
-        onClick={() => {
-          console.log('Toolbar线条模式按钮点击');
-          onLineModeToggle();
-        }}
-        title="线条模式"
-      >
-        ⬜
-        <span className="tool-label">线条模式</span>
       </button>
     </div>
   );

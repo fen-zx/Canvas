@@ -1,3 +1,4 @@
+//画布底部状态栏
 import React from 'react';
 
 interface CanvasStatusProps {

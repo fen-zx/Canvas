@@ -1,7 +1,7 @@
+// 键盘快捷键组件
 import React, { useState } from 'react';
 
 interface KeyboardShortcutsProps {
-  // 可以添加属性来控制显示/隐藏或其他行为
 }
 
 const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = () => {
@@ -15,7 +15,6 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = () => {
     { keys: 'Delete', description: '删除选中元素' },
     { keys: 'Esc', description: '取消选择' },
     { keys: 'Ctrl + Z', description: '撤销' },
-    { keys: 'Ctrl + Y', description: '重做' },
     { keys: 'Ctrl + C', description: '复制' },
     { keys: 'Ctrl + V', description: '粘贴' },
     { keys: 'Shift + 滚轮', description: '缩放画布' },

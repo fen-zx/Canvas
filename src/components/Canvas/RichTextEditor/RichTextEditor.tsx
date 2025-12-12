@@ -1,8 +1,9 @@
+// 富文本编辑器组件
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { TextElement } from '../types';
 
-// 添加样式来隐藏WebKit浏览器的滚动条
 const styleSheet = document.createElement('style');
+//去掉滚动条
 styleSheet.textContent = `
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -60,8 +61,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // 确保DOM更新完成后再聚焦
       setTimeout(() => {
         textAreaRef.current?.focus();
-        // 自动选中所有文本（可选）
-        // textAreaRef.current?.select();
       }, 0);
     }
   }, [isEditing]);
@@ -180,13 +179,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // 处理键盘事件
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // 按Enter不创建新行，而是完成编辑
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey || e.key === 'Escape') {
       e.preventDefault();
-      onFinishEditing();
-    }
-
-    // 按Esc完成编辑
-    if (e.key === 'Escape') {
       onFinishEditing();
     }
 
