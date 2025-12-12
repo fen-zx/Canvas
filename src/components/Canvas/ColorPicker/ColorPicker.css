@@ -1,0 +1,290 @@
+/* 颜色选择器容器 */
+.color-picker {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 280px;
+    user-select: none;
+    overflow: hidden;
+}
+
+/* 颜色选择器头部 */
+.color-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+/* 颜色选择器标题 */
+.color-picker-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* 关闭按钮 */
+.color-picker-close-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.color-picker-close-btn:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+/* 标签页容器 */
+.color-picker-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+}
+
+/* 标签页按钮 */
+.color-picker-tab {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+}
+
+.color-picker-tab:hover {
+    background: #f8f9fa;
+    color: #333;
+}
+
+.color-picker-tab.active {
+    color: #2196f3;
+    border-bottom-color: #2196f3;
+    background: #f0f7ff;
+}
+
+/* 内容区域 */
+.color-picker-content {
+    padding: 16px;
+}
+
+/* 颜色面板 */
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+/* 颜色选项 */
+.color-option {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 选中的颜色选项 */
+.color-option.selected {
+    box-shadow: 0 0 0 2px #2196f3, 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* 透明色特殊样式 */
+.transparent-color {
+    position: relative;
+}
+
+.transparent-indicator {
+    color: #666;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* 自定义颜色输入 */
+.custom-color-input {
+    width: 100%;
+    height: 36px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    padding: 4px;
+}
+
+.custom-color-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 底部区域 */
+.color-picker-footer {
+    margin-top: 12px;
+}
+
+/* 边框宽度选择面板 */
+.stroke-width-palette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+/* 边框宽度选项 */
+.stroke-width-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f8f9fa;
+}
+
+.stroke-width-option:hover {
+    border-color: #2196f3;
+    background: #f0f7ff;
+}
+
+.stroke-width-option.selected {
+    border-color: #2196f3;
+    background: #e3f2fd;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+/* 边框宽度预览 */
+.stroke-width-preview {
+    width: 40px;
+    border-radius: 2px;
+    margin-bottom: 4px;
+}
+
+/* 边框宽度标签 */
+.stroke-width-label {
+    font-size: 11px;
+    color: #666;
+}
+
+/* 自定义边框宽度输入 */
+.stroke-width-custom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+.stroke-width-input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    width: 60px;
+}
+
+.stroke-width-unit {
+    font-size: 13px;
+    color: #666;
+}
+
+/* 尺寸设置容器 */
+.size-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 尺寸输入组 */
+.size-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* 尺寸标签 */
+.size-label {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* 尺寸输入框容器 */
+.size-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+/* 尺寸输入框 */
+.size-input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    width: 100%;
+}
+
+.size-input:focus {
+    outline: none;
+    border-color: #2196f3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .color-picker {
+        width: 240px;
+    }
+
+    .color-palette {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .color-option {
+        width: 32px;
+        height: 32px;
+    }
+
+    .stroke-width-palette {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .color-picker-tab {
+        font-size: 12px;
+        padding: 8px;
+    }
+}

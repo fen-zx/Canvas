@@ -1,7 +1,7 @@
 // 基础元素属性
 interface BaseElement {
   id: string;
-  type: 'rect' | 'circle' | 'triangle' | 'image' | 'text';
+  type: 'rect' | 'circle' | 'star' | 'rounded-rect' | 'triangle' | 'image' | 'text';
   x: number;
   y: number;
   width: number;
@@ -16,16 +16,18 @@ interface BaseElement {
 
 // 图形元素属性
 interface ShapeElement extends BaseElement {
-  type: 'rect' | 'circle' | 'triangle';
+  type: 'rect' | 'circle' | 'star' | 'rounded-rect' | 'triangle';
   fill: string;
   stroke: string;
   strokeWidth: number;
+  borderRadius?: number; // 用于圆角矩形
 }
 
 // 图片元素属性
-interface ImageElement extends BaseElement {
+export interface ImageElement extends BaseElement {
   type: 'image';
   src: string;
+  filter?: string; // 支持滤镜效果
 }
 
 // 文本元素属性
@@ -48,7 +50,7 @@ export type CanvasElement = ShapeElement | ImageElement | TextElement;
 export interface CanvasState {
   elements: CanvasElement[];
   selectedElementIds: string[];
-  currentTool: 'select' | 'rect' | 'circle' | 'triangle' | 'image' | 'text';
+  currentTool: 'select' | 'rect' | 'circle' | 'rounded-rect' | 'triangle' | 'image' | 'text' | 'shape';
   position: { x: number; y: number };
   scale: number;
 }
@@ -59,4 +61,22 @@ export interface ToolButtonProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+}
+
+// 图案类型定义
+export interface Pattern {
+  id: string;
+  name: string;
+  type: 'rect' | 'circle' | 'star' | 'rounded-rect' | 'triangle';
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  width: number;
+  height: number;
+  borderRadius?: number; // 用于圆角矩形
+}
+
+// 侧边栏属性接口
+export interface PatternSidebarProps {
+  onSelectPattern: (pattern: Pattern) => void;
 }
